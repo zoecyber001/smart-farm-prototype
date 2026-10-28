@@ -1,0 +1,5 @@
+{
+  "sand": {"label": "sandy", "wp": 6,  "fc": 16, "sat": 40, "max_run_min": 20, "soak_min": 30, "drain": 0.35},
+  "loam": {"label": "loam",  "wp": 12, "fc": 28, "sat": 48, "max_run_min": 30, "soak_min": 45, "drain": 0.15},
+  "clay": {"label": "clay",  "wp": 22, "fc": 40, "sat": 52, "max_run_min": 15, "soak_min": 90, "drain": 0.05}
+}

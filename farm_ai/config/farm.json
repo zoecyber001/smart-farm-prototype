@@ -1,0 +1,11 @@
+{
+  "farm_name": "GAA Demo Farm (simulation)",
+  "uplink_interval_s": 900,
+  "nodes": [
+    {"id": "N1", "bed": "Bed A", "crop": "tomato",       "soil": "loam", "planted": "2026-09-02", "area_m2": 3.0, "design_flow_lpm": 4.0, "rated_pump_ma": 800, "dry_raw": 3100, "wet_raw": 1350, "auto_irrigate": true},
+    {"id": "N2", "bed": "Bed B", "crop": "pepper",       "soil": "sand", "planted": "2026-09-15", "area_m2": 3.0, "design_flow_lpm": 4.0, "rated_pump_ma": 800, "dry_raw": 3100, "wet_raw": 1350, "auto_irrigate": true},
+    {"id": "N3", "bed": "Bed C", "crop": "leafy_greens", "soil": "clay", "planted": "2026-10-05", "area_m2": 2.0, "design_flow_lpm": 3.0, "rated_pump_ma": 700, "dry_raw": 3100, "wet_raw": 1350, "auto_irrigate": true},
+    {"id": "N4", "bed": "Bed D", "crop": "maize",        "soil": "loam", "planted": "2026-09-20", "area_m2": 4.0, "design_flow_lpm": 5.0, "rated_pump_ma": 900, "dry_raw": 3100, "wet_raw": 1350, "auto_irrigate": true},
+    {"id": "N5", "bed": "Bed E", "crop": "tomato",       "soil": "clay", "planted": "2026-09-25", "area_m2": 3.0, "design_flow_lpm": 4.0, "rated_pump_ma": 800, "dry_raw": 3100, "wet_raw": 1350, "auto_irrigate": false}
+  ]
+}

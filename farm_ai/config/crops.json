@@ -1,0 +1,18 @@
+{
+  "tomato": {"label": "Tomato", "stages": [
+    {"name": "seedling",        "from_day": 0,  "to_day": 21,  "root_mm": 150, "trigger_aw": 0.60, "target_aw": 0.90, "kc": 0.6,  "needs": "Shallow roots dry out fast; keep the top soil moist."},
+    {"name": "vegetative",      "from_day": 22, "to_day": 45,  "root_mm": 300, "trigger_aw": 0.55, "target_aw": 0.90, "kc": 0.85, "needs": "Building leaves and stems; steady watering gives strong plants."},
+    {"name": "flowering/fruit set", "from_day": 46, "to_day": 85, "root_mm": 450, "trigger_aw": 0.60, "target_aw": 0.92, "kc": 1.15, "needs": "Water stress now drops flowers and causes blossom-end rot, so do not let it dry."},
+    {"name": "ripening",        "from_day": 86, "to_day": 130, "root_mm": 450, "trigger_aw": 0.50, "target_aw": 0.85, "kc": 0.8,  "needs": "Slightly drier soil improves fruit quality, but avoid big swings that crack fruit."}]},
+  "pepper": {"label": "Pepper", "stages": [
+    {"name": "seedling",   "from_day": 0,  "to_day": 21,  "root_mm": 150, "trigger_aw": 0.60, "target_aw": 0.90, "kc": 0.6,  "needs": "Keep the top soil moist for young roots."},
+    {"name": "vegetative", "from_day": 22, "to_day": 50,  "root_mm": 300, "trigger_aw": 0.55, "target_aw": 0.90, "kc": 0.9,  "needs": "Steady moisture builds the plant frame."},
+    {"name": "flowering/fruiting", "from_day": 51, "to_day": 120, "root_mm": 400, "trigger_aw": 0.60, "target_aw": 0.90, "kc": 1.05, "needs": "Sensitive to dry spells; flowers drop under stress."}]},
+  "maize": {"label": "Maize", "stages": [
+    {"name": "emergence",  "from_day": 0,  "to_day": 14,  "root_mm": 200, "trigger_aw": 0.50, "target_aw": 0.85, "kc": 0.4,  "needs": "Needs even moisture for germination."},
+    {"name": "vegetative", "from_day": 15, "to_day": 55,  "root_mm": 500, "trigger_aw": 0.50, "target_aw": 0.85, "kc": 0.85, "needs": "Roots go deep; water less often but deeply."},
+    {"name": "tasseling/silking", "from_day": 56, "to_day": 80, "root_mm": 800, "trigger_aw": 0.60, "target_aw": 0.90, "kc": 1.2, "needs": "Most critical stage; stress here cuts grain yield sharply."},
+    {"name": "grain fill", "from_day": 81, "to_day": 130, "root_mm": 800, "trigger_aw": 0.50, "target_aw": 0.85, "kc": 0.9,  "needs": "Keep moisture steady until grains fill."}]},
+  "leafy_greens": {"label": "Leafy greens", "stages": [
+    {"name": "growing",    "from_day": 0,  "to_day": 70,  "root_mm": 150, "trigger_aw": 0.65, "target_aw": 0.95, "kc": 0.9,  "needs": "Shallow roots and tender leaves; needs frequent light watering."}]}
+}

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>Farm Operations</title>
+<link rel="manifest" href="/static/manifest.webmanifest">
+<meta name="theme-color" content="#1d3a2c">
+<link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="appbar">
+  <div class="brand">
+    <div class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <path d="M12 21c0-6 2-10 8-13-6-1-10 2-11 7-1 4 1 6 3 6z" fill="currentColor" opacity=".25"/>
+        <path d="M12 21c0-6 2-10 8-13"/>
+        <path d="M12 21c-2 0-5-2-5-6 0-3 2-5 2-5"/>
+      </svg>
+    </div>
+    <div>
+      <h1 id="farm-name" class="brand-name">Farm Operations</h1>
+      <p id="clock" class="brand-sub">&mdash; connecting</p>
+    </div>
+  </div>
+  <span id="sim-tag" class="chip chip-sim" hidden>Simulated clock</span>
+</header>
+
+<nav class="tabs" role="tablist" aria-label="Sections">
+  <button class="tab is-active" data-view="overview" role="tab" aria-selected="true">Overview</button>
+  <button class="tab" data-view="beds" role="tab" aria-selected="false">Beds</button>
+  <button class="tab" data-view="alerts" role="tab" aria-selected="false">Alerts <span id="count-alerts" class="count" hidden>0</span></button>
+  <button class="tab" data-view="activity" role="tab" aria-selected="false">Activity</button>
+</nav>
+
+<main class="wrap">
+  <div id="banner-offline" class="banner" role="alert" hidden>
+    <b>Connection lost.</b> Showing the last state the server returned &mdash; retrying every 3&nbsp;s.
+  </div>
+
+  <section id="view-overview" class="view" role="tabpanel" aria-label="Overview"></section>
+  <section id="view-beds" class="view" role="tabpanel" aria-label="Beds" hidden></section>
+  <section id="view-alerts" class="view" role="tabpanel" aria-label="Alerts" hidden></section>
+  <section id="view-activity" class="view" role="tabpanel" aria-label="Activity" hidden></section>
+
+  <p id="loading" class="loadnote">Loading the farm&hellip;</p>
+</main>
+
+<footer class="foot" id="foot"></footer>
+
+<div id="bed-dialog" class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title" hidden>
+  <div class="dialog-scrim" data-close></div>
+  <div class="dialog-panel">
+    <div class="dialog-head">
+      <div><h2 id="dialog-title" class="dialog-title">&mdash;</h2><p id="dialog-sub" class="sub"></p></div>
+      <button class="btn btn-ghost dialog-close" data-close aria-label="Close">&times;</button>
+    </div>
+    <div id="dialog-body" class="dialog-body"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast" aria-live="polite" hidden></div>
+
+<script src="/static/js/api.js"></script>
+<script src="/static/js/state.js"></script>
+<script src="/static/js/charts.js"></script>
+<script src="/static/js/views.js"></script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>
