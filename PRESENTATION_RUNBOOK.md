@@ -132,6 +132,52 @@ Files: `farm_ai/wokwi/diagram.json` (repo-root `diagram.json` is the same file),
    `check_hardware`, no watering command, moisture advice withheld).
 5. Flip the switch back off, press Wake again — fault clears on a healthy reading.
 
+### Rehearsal script — run once in the browser before class
+
+This is the browser-only checklist that could NOT be automated from the dev
+environment (no Wokwi CLI available here), so the demo must be rehearsed by a
+human exactly once. If any expected output below does not appear, fix that
+step and re-run before presenting. Gateway bridge stays OFF — everything here
+works with the Wokwi Serial Monitor alone. Total ≈ 8 minutes (estimate).
+
+☐ **1. Boot & display.** Press Play. Serial: `SMART FARM FIELD NODE HARDWARE
+   BOOT` → `[READY] All subsystems operational.` → `[SLEEP] Entering low-power
+   sleep for 15 seconds.` OLED lit: header, soil ≈ 40 %, battery ≈ 3.9 V.
+☐ **2. Soil pot live.** Turn the Soil Moisture pot: the raw value and OLED %
+   change on the next uplink. Turn it back to the default position (600).
+☐ **3. Watering round trip.** Press Wake, read the new sequence number from
+   `UPLINK PACKET: N1,<seq>,…`, and within the 1.5 s RX window paste
+   `ACK,N1,<seq>,20`. Expected: `>> STARTING IRRIGATION CYCLE: 20 SECONDS`,
+   blue LED + relay click, live `[PUMP] T-…` lines, then
+   `>> PUMP CYCLE COMPLETED: Ran 20 s | …`. TIP: keep `ACK,N1,**,20` typed
+   already and only edit the seq digits — the 1.5 s window is short.
+☐ **4. Stale-ACK guard.** Press Wake, allow the window to pass, then paste the
+   PREVIOUS wake's `ACK,N1,<old_seq>,20` inside the new window. Expected: no
+   confirmation and the window closes with `[RX-WINDOW] Closed. No gateway ACK
+   received.` — the pump must not start (seq mismatch is rejected).
+☐ **5. Jammed pump.** Switch 1 (GPIO 18) ON, trigger a cycle as in step 3.
+   Expected within ~1 s of pump start: `>>> [SAFETY INTERLOCK] Current > 160%
+   rated! Jam detected. Halting pump.` Next uplink reports the aborted run.
+   Switch OFF afterwards.
+☐ **6. Blocked drip line.** Switch 2 (GPIO 19) ON, trigger a cycle. Expected:
+   pump runs with zero flow and cuts at the 15 s mark: `>>> [SAFETY INTERLOCK]
+   Zero flow measured after 15s! Line blocked. Halting pump.`; next uplink
+   shows `irr_s ≈ 15, flow_mL 0`. Switch OFF afterwards.
+☐ **7. Cut sensor + gateway unavailable (the safety-critical drill).** Switch 3
+   (GPIO 23) ON. Press Wake at least 10 times WITHOUT any ACK (the local
+   fail-safe only arms after 10 silent wakes; each wake prints
+   `UPLINK PACKET: N1,<seq>,4095,…` and `[SENSOR FAULT] … watering inhibited`).
+   Expected at/after the 10th silent wake:
+   `[SAFETY-LOCK] Gateway silent, but soil reading is INVALID: fail-safe
+   watering is blocked.` AND `>> STARTING IRRIGATION CYCLE` never appears.
+   Quick extra proof: while still faulted, paste a well-formed
+   `ACK,N1,<current seq>,20` — expect `[SAFETY-LOCK] Watering command ignored:
+   soil sensor is faulted. Repair the probe first.`
+☐ **8. Recovery.** Switch 3 OFF, soil pot at 600/1023, press Wake: healthy
+   reading, OLED leaves the `SENSOR FAULT` screen, packet values normal.
+
+Before class: all three switches OFF, pot at 600, press Play to restart fresh.
+
 ---
 
 ## 3. Suggested 5-minute talk order
