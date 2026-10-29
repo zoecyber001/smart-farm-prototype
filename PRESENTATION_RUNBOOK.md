@@ -220,6 +220,48 @@ honest wording used throughout this runbook.
 
 ---
 
+## 2C. Track C — One-command live demo, NO Wokwi needed (failsafe if every
+## browser/serial route refuses to cooperate on stage)
+
+One script drives the whole story through the dashboard's real API — the same
+HTTP contract the Wokwi bridge and the firmware speak — with a narrated,
+press-Enter paced eight-beat show. Runs in any terminal; Wokwi is optional
+garnish, never load-bearing.
+
+```bash
+# 1. Restart the dashboard fresh (also resets the demo database so Beat 1
+#    starts from the intended 'Bed A: no action needed' baseline):
+./run_dashboard.sh
+# 2. In a second terminal:
+cd farm_ai && ../.venv/bin/python demo_live.py            # press Enter per beat
+#    (add --no-pause to run straight through for a rehearsal dry-run)
+```
+
+What the audience sees, beat by beat (verified outputs in this environment):
+
+| # | Beat | Dashboard / terminal evidence |
+|---|---|---|
+| 1 | Healthy heartbeat | Bed A refreshes; advice computed; (if the 4-day prefill left Bed A dry, the controller issues its own `auto sent` watering command — correct behaviour, just narrate it as such) |
+| 2 | Dry soil packet | The autonomous controller commands irrigation — Activity shows `Bed A ... (auto sent)` with the reason; the radio replays silence only when the soak-time guard says the soil is still absorbing |
+| 3 | Farmer orders water | `/api/manual` → next uplink is answered live: `ACK,N1,<seq>,300 (manual request)` — the downlink round trip, visible in the terminal |
+| 4 | Water delivered | completion report (300 s, 20.0 L, 800 mA) → `last_water` stamp updates, no faults |
+| 5 | Blocked line | `LINE_BLOCKED` critical + `"water by hand, about 290 litres. Automatic watering is stopped."` |
+| 6 | Jammed pump | `PUMP_JAMMED` critical (pump 1350 mA vs 800 mA rated) |
+| 7 | Probe cut | `SENSOR_FAULT` (raw 4095); **no moisture number is published** — the dashboard refuses to trust the broken probe; nothing waters |
+| 8 | Recovery | healthy run clears the fault; advice and watering resume |
+
+Honest notes for this track:
+- Beds B–E keep showing their own simulated faults from the dashboard's
+  background farm simulator — that is the sim doing its job, not this script.
+- Beat 7's sensor fault is a last-reading fault: the terminal capture (printed
+  immediately after the packet) is the durable proof; the on-page alert may
+  flick as the simulator continues ticking. Wokwi shows that same guard
+  continuously if you want it on screen too.
+- Say out loud if asked: the packets arrive through the API (the bridge's
+  interface), not through a physical radio — same honest framing as Track A.
+
+---
+
 ## 3. Suggested 5-minute talk order
 
 1. Problem (30 s): dumb timers, silent failures, no wifi in the field.
@@ -228,6 +270,8 @@ honest wording used throughout this runbook.
 3. Track A dashboard (2 min): faults already happening, farmer-phrase advice,
    activity feed, footer accuracy line with the honest wording.
 4. Track B Wokwi (2 min): drills 1 → 4 (the fault switches are the show).
+   If Wokwi misbehaves on the presentation laptop, switch to Track C
+   (`farm_ai/demo_live.py`) — the same fault story, driven live from the API.
 5. Honest limits + what you'd build next (30 s): the statements in Section 4.
 
 ---
