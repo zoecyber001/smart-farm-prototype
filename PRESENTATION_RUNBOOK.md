@@ -183,6 +183,41 @@ works with the Wokwi Serial Monitor alone. Total ≈ 8 minutes (estimate).
 
 Before class: all three switches OFF, pot at 600, press Play to restart fresh.
 
+### Fallback — demonstration with NO Wokwi serial input (verified zero-typing path)
+
+Discovered during rehearsal: on some stations the Wokwi Serial Monitor input
+row is unavailable, and the ACK paste path (steps 3, 5–7 above) can't be done.
+This fallback needs **no typing at all** and still demonstrates pump actuation,
+the safety interlocks and the sensor fault — the node's own local fail-safe is
+the actuator.
+
+1. Slide the **Soil Moisture pot to ≈ 3/4 toward dry** — target uplink
+   `soil_raw` between **2700 and 3400** (OLED shows ≈ 3–20 %).
+   ⚠️ NEVER push the pot fully to the end: 1023/1023 → raw 4095, which the node
+   correctly reads as a CUT PROBE (`SENSOR FAULT`) — the fail-safe will then
+   refuse to water. If you overshoot, bring the pot back to ≈ 750.
+2. Press **Wake (GPIO 4) 10–12 times**, counting the `Closed. No gateway ACK
+   received.` windows. Each wake adds one; the local fail-safe requires 10.
+3. On/after the 10th silent wake with a valid dry reading, the node
+   self-triggers: `[FAIL-SAFE] Gateway silent & soil critical! Initiating local
+   fail-safe 60s water.` → `>> STARTING IRRIGATION CYCLE: 60 SECONDS` →
+   relay + blue LED + one `[PUMP] T-…` line per second.
+4. **During that 60 s run:** Switch 1 (GPIO 18) ON → overcurrent interlock
+   within ~1 s: `>>> [SAFETY INTERLOCK] Current > 160% rated! Jam detected.
+   Halting pump.` — or Switch 2 (GPIO 19) ON → zero-flow interlock at the
+   15 s mark: `>>> [SAFETY INTERLOCK] Zero flow measured after 15s! Line
+   blocked. Halting pump.`
+5. **Sensor lockout** still works with serial input broken: Switch 3 (GPIO 23)
+   ON + Wake → `[SENSOR FAULT] … Automatic watering inhibited` and the OLED
+   "no auto water" screen. An ACK is not needed to prove the lockout exists.
+6. Restart the simulation (Play button) between runs: the fail-safe ring has a
+   96-wake cooldown in firmware, which would eat a 2-minute demo slot.
+
+**What this path does not show**: the Wokwi → dashboard round trip. Present
+that via Track A's scripted bridge demo (`--demo`, § 1) and *say* it is a
+predefined packet sequence, not live radio — that separation is already the
+honest wording used throughout this runbook.
+
 ---
 
 ## 3. Suggested 5-minute talk order
