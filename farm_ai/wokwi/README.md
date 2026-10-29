@@ -55,65 +55,113 @@ This hardware simulation environment faithfully models the **Smart Farm Field No
 
 ---
 
-## 3. How to Launch and Run the Simulation
+## 3. How to Launch and Run the Simulation (Step-by-Step Setup)
 
-### Option A: VS Code with Wokwi Extension (Recommended for Development)
-1. Install the **Wokwi Simulator** extension in VS Code.
-2. Open this repository.
-3. Open `farm_ai/wokwi/diagram.json` or press `Ctrl+Shift+P` (or `Cmd+Shift+P`) and choose **Wokwi: Start Simulator**.
-4. The simulation canvas will boot up, showing the ESP32, OLED screen, sensors, and actuators.
+### Option A: Online Wokwi Web Simulator (easiest — works in any browser, no install)
+1. Copy two files from this repo onto your machine first:
+   - `farm_ai/wokwi/diagram.json`
+   - `farm_ai/wokwi/sketch.ino`
+2. In your browser, open [wokwi.com/projects/new/esp32](https://wokwi.com/projects/new/esp32). You may need to sign in with a Google/GitHub account (free).
+3. You will see two tabs above the code editor: **sketch.ino** and **diagram.json**.
+4. Open `diagram.json` from the repo, select-all (`Ctrl+A`), copy (`Ctrl+C`), then in Wokwi click the **diagram.json** tab, select-all and paste (`Ctrl+V`). It overwrites the default circuit.
+5. Do the same for `sketch.ino`: click the **sketch.ino** tab, select-all, paste the repo's `sketch.ino` over it.
+6. Next, add the four libraries: click the red **Library Manager** tab (the one with a + shape), search for and click **Add** on each of:
+   - `Adafruit SSD1306`
+   - `Adafruit GFX Library`
+   - `DHT sensor library`
+   - `Adafruit Unified Sensor`
+7. Click the green **Play button** (▶) at the top of the screen.
+8. A panel appears at the bottom of the canvas — this is the **Serial Monitor**. Within ~10 seconds you should see:
+   ```
+   SMART FARM FIELD NODE HARDWARE BOOT
+   [READY] All subsystems operational. Starting main loop.
+   ```
+   and then telemetry packets like `UPLINK PACKET: N1,1,2402,265,58,4326,0,0,0`.
+9. If it doesn't compile: check that **all four** libraries are added (missing `Adafruit Unified Sensor` is the most common miss) and that both tabs were pasted from the repo, not hand-typed.
 
-### Option B: Online Wokwi Web Simulator (Zero-Install Review)
-1. Go to [wokwi.com/projects/new/esp32](https://wokwi.com/projects/new/esp32).
-2. Copy and paste the contents of:
-   - `diagram.json` into the web editor's `diagram.json` tab.
-   - `sketch.ino` into the main `sketch.ino` code tab.
-   - `libraries.txt` into the Library Manager tab (or add `Adafruit SSD1306`, `Adafruit GFX Library`, `DHT sensor library`, `Adafruit Unified Sensor`).
-3. Click the green **Play / Start Simulation** button.
+> **Wiring visuals:** the canvas should show an ESP32 DevKit-C V4 on a breadboard with two potentiometers, a DHT22, an OLED, a relay + blue LED, two push-buttons and three slide-switches, all per `diagram.json`. If wires look wrong, re-paste `diagram.json` — don't try to fix them by hand.
+
+### Option B: VS Code with the Wokwi Extension (needed to run the local files directly)
+1. Install [VS Code](https://code.visualstudio.com) if you don't have it.
+2. Open VS Code → click the **Extensions** icon on the left toolbar (four squares).
+3. Search for `Wokwi Simulator` (publisher: Wokwi) → click **Install**.
+4. Clone or download this repository, then in VS Code: **File → Open Folder…** and select the repository folder (the top folder that contains `farm_ai/`).
+5. In the Explorer panel (left sidebar), navigate into `farm_ai/wokwi/` and click **once** on `diagram.json` to open it.
+6. Press `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (Mac) to open the command palette.
+7. Type `Wokwi` and pick **Wokwi: Start Simulator**.
+8. A **Wokwi Simulator** tab opens inside VS Code showing the circuit. The serial output appears in the bottom **Terminal** panel under a **Wokwi Simulator** tab.
+9. Click the green play button in the Wokwi tab to start the simulation, then watch the serial terminal for the boot banner and packets.
+10. If the extension asks for a project folder, choose the folder that contains `diagram.json` (i.e. `farm_ai/wokwi/`).
+
+> **Which option for the presentation?** Option A (browser) is the most reliable on a presentation laptop and needs no tools installed; Option B (VS Code) lets you run the repo files directly without copy-pasting. Both run the identical firmware.
 
 ---
 
 ## 4. Live Review Demonstration Scenarios
 
-Here is how to showcase the system's fault-tolerance and agronomic intelligence during a review:
+Here is how to showcase the system's fault-tolerance and agronomic intelligence during a review.
 
-### Scenario 1: Normal Healthy Irrigation
+> **About typing into Wokwi:** the Serial Monitor input box (needed for the `ACK,…` scenarios below) is a browser feature that is hidden or unavailable on some setups. **Scenarios 1 and 5 need zero typing.** If the input box works for you, Scenarios 2–4 add the gateway round trip on top.
+
+### Scenario 1: Autonomous Fail-Safe Irrigation (ZERO serial input needed — start here)
+This is the strongest single demo: the node waters the crop **by itself** when the gateway cannot answer, using its built-in fail-safe.
+1. Slide the **Soil Moisture** potentiometer until the OLED shows roughly **5–17 %** (raw 2800–3200 in the uplink's 3rd number). Do NOT slide it to the very end-stop — raw 4095 is interpreted as a cut probe, and the node will correctly refuse to water.
+2. Press the yellow **Wake** button repeatedly. The node counts every wake it makes without receiving a gateway ACK. On (and after) the **10th silent wake with dry soil**, the internal fail-safe fires:
+   ```
+   [FAIL-SAFE] Gateway silent & soil critical! Initiating local fail-safe 60s water.
+   >> STARTING IRRIGATION CYCLE: 60 SECONDS
+   ```
+3. **Watch the hardware respond:**
+   - The Relay clicks ON and the Blue LED illuminates.
+   - The OLED shows `PUMP: 59s left` and a live flow/current readout.
+   - The Serial Monitor prints a `[PUMP] T-59s | Curr: 800 mA | Flow: …` line every second.
+   - At 60 s: `>> PUMP CYCLE COMPLETED: Ran 60 s | Flow: 4000 mL | Avg Current: 800 mA`.
+4. **Note:** there is no cooldown after a fail-safe run — as long as the soil is still dry and no ACK is received, the next Wake press re-runs the fail-safe, which makes repeats easy in a rehearsal.
+
+### Scenario 2: Gateway-Commanded Irrigation (requires the Wokwi Serial input box)
 1. Turn the **Soil Moisture** potentiometer toward the left (dry reading, raw > 2700).
 2. Press the yellow **Wake** button (GPIO 4) to send an immediate telemetry uplink.
-3. Observe the Serial Monitor: the node outputs its packet (`N1,1,2850,260,55,3950,0,0,0`).
+3. Observe the Serial Monitor: the node outputs its packet (`N1,1,2850,260,55,3950,0,0,0`) and prints `Opening 1.5s RX Window for Gateway reply...`.
 4. In the Serial input box, reply with:
    ```
    ACK,N1,1,20
    ```
+   (The 1.5 s window is tight — pre-type the line and just swap in the new sequence number.)
 5. **Watch the hardware respond:**
    - The Relay clicks ON, the Blue LED illuminates.
    - The OLED shows `>> PUMP ACTIVE <<` with a live countdown timer.
    - The flow meter measures liters delivered while current stays at ~800 mA nominal.
    - After 20 seconds, the pump safely shuts off.
+6. If you want the **dashboard** to witness this too, run the server + gateway bridge described in section 5 below.
 
-### Scenario 2: Jammed Pump Protection (Mechanical Failure Drill)
-1. Flip **Fault Switch 1** (`sw_jam` on GPIO 18) to the active position.
-2. Command a pump run (`ACK,N1,2,30`).
+### Scenario 3: Jammed Pump Protection (Mechanical Failure Drill)
+1. Run the pump first — either via **Scenario 1** (fail-safe, no typing) or **Scenario 2** (gateway ACK paste).
+2. While the pump is running, flip **Fault Switch 1** (`sw_jam` on GPIO 18) to the active position.
 3. **Observation:** Within 1 second, the node measures current > 1600 mA (stalled motor).
 4. The safety interlock immediately shuts off the relay to prevent motor burnout, logs:
    `>>> [SAFETY INTERLOCK] Current > 160% rated! Jam detected. Halting pump.`
 5. The OLED updates to `FAULT: Jammed Pump`.
 
-### Scenario 3: Blocked Drip Line (Mud / Clog Drill)
-1. Flip **Fault Switch 2** (`sw_block` on GPIO 19) to the active position.
-2. Command a pump run (`ACK,N1,3,30`).
+### Scenario 4: Blocked Drip Line (Mud / Clog Drill)
+1. Run the pump first — either via **Scenario 1** (fail-safe, no typing) or **Scenario 2** (gateway ACK paste).
+2. While the pump is running, flip **Fault Switch 2** (`sw_block` on GPIO 19) to the active position.
 3. **Observation:** The pump runs, but no flow pulses are detected.
 4. Exactly at elapsed $t = 15\,\text{s}$, the node detects zero flow and halts the pump:
    `>>> [SAFETY INTERLOCK] Zero flow measured after 15s! Line blocked. Halting pump.`
 5. The next uplink packet reports `irr_s: 15, flow_mL: 0`, and the dashboard triggers the `LINE_BLOCKED` alert instructing the farmer to flush the emitters.
 
-### Scenario 4: Rodent-Chewed Sensor Cable (Electrical Failure Drill)
+### Scenario 5: Rodent-Chewed Sensor Cable (Electrical Failure Drill)
 1. Flip **Fault Switch 3** (`sw_cut` on GPIO 23) to the active position.
 2. Press the yellow **Wake** button.
 3. **Observation:** Soil ADC reads 4095 (maximum saturated value). The node itself recognises raw 4095 as invalid (outside its validity window) and shows `SENSOR FAULT` on the OLED.
 4. **The node refuses to water while the reading is untrustworthy** — no local fail-safe watering, and any `ACK,...` command pasted into the serial console is ignored too (the operator manual says hand-water instead).
 5. The uplink still reports `soil_raw 4095`; the backend's own health check flags `SENSOR_FAULT` (a second, independent layer), disables automated irrigation for that bed, and shows the alert.
 6. Flip the switch back off and send a healthy reading to clear the fault, then normal operation resumes.
+
+### Scenario 6: Stale/No-ACK Rejection (requires the Serial input box)
+1. Press **Wake** and read the printed sequence number on the `UPLINK PACKET: …` line (e.g. `7`).
+2. During the next RX window, paste an `ACK,N1,<DIFFERENT-seq>,20` (e.g. `ACK,N1,3,20`).
+3. **Observation:** the node prints the received line, then `[RX-WINDOW] Closed. No gateway ACK received.` and **never** starts the pump — a stale or replayed command is silently rejected. This is the security posture: only a command that names the current sequence number is accepted.
 
 ---
 
