@@ -14,9 +14,9 @@
  *   - GPIO 33: YF-S201 Flow Sensor Hall Pulse (Interrupt Falling Edge)
  *   - GPIO 21 / 22: I2C Bus (SDA / SCL) -> SSD1306 128x64 OLED Display
  *   - GPIO 4: Manual Instant Wake / Uplink Pushbutton
- *   - GPIO 12: Review Fault Switch 1 (Simulate Jammed Pump / Over-current)
- *   - GPIO 13: Review Fault Switch 2 (Simulate Blocked Drip Line / Zero Flow)
- *   - GPIO 14: Review Fault Switch 3 (Simulate Cut Sensor Wire / Raw 4095)
+ *   - GPIO 18: Review Fault Switch 1 (Simulate Jammed Pump / Over-current)
+ *   - GPIO 19: Review Fault Switch 2 (Simulate Blocked Drip Line / Zero Flow)
+ *   - GPIO 23: Review Fault Switch 3 (Simulate Cut Sensor Wire / Raw 4095)
  *
  * Telemetry Protocol (CSV):
  *   Uplink:   <node>,<seq>,<soil_raw>,<temp_x10>,<hum>,<batt_mV>,<irr_s>,<flow_mL>,<pump_mA>
@@ -30,12 +30,16 @@
 #include <DHT.h>
 
 // ---------- Feature Toggles ----------
-// Set to true if running with Wokwi IoT Gateway to send HTTP directly to local host
+// EXPERIMENTAL, disabled by default: direct HTTP uplink via the Wokwi IoT
+// Gateway. This path has never been verified end-to-end against a running
+// server; the supported integration is the serial gateway bridge
+// (wokwi/wokwi_gateway.py). Leave false for the presentation.
 #define ENABLE_WOKWI_WIFI   false
 
 #if ENABLE_WOKWI_WIFI
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <time.h>
 const char* WIFI_SSID = "Wokwi-GUEST";
 const char* WIFI_PASS = "";
 const char* SERVER_URL = "http://host.wokwi.internal:5000/api/uplink";
@@ -49,6 +53,13 @@ const char* SERVER_URL = "http://host.wokwi.internal:5000/api/uplink";
 #define SOIL_DRY_RAW        3100          // In dry air (0% VWC)
 #define SOIL_WET_RAW        1350          // In saturated water (100% capacity)
 #define LOCAL_DRY_RAW       2700          // Local fail-safe trigger threshold
+// Sensor validity window (calibrated range + margin). Readings outside it are
+// electrically impossible for a wired-up probe: 4095 = open circuit / cut wire,
+// a reading at or near 0 = shorted probe, values past dry_raw + margin = probe
+// unplugged from its signal line. Invalid readings must NEVER be treated as
+// "dry soil" -- they are a sensor fault and inhibit every automatic watering.
+#define SENSOR_VALID_LO     (SOIL_WET_RAW - 200)   // 1150: wetter than water = broken
+#define SENSOR_VALID_HI     (SOIL_DRY_RAW + 300)   // 3400: past dry-air = disconnected
 #define FLOW_PULSES_PER_L   450.0         // YF-S201 Hall sensor calibration
 #define MAX_RUN_S           900           // Max allowable pump run per command
 
@@ -101,17 +112,23 @@ void renderOLED(const char* state, uint16_t soilRaw, int soilPct, float temp, fl
   oled.print(seq);
   oled.drawLine(0, 9, 127, 9, SSD1306_WHITE);
 
-  // Line 1: Soil Moisture with graphical bar
+  // Line 1: Soil Moisture with graphical bar (no % while the probe is faulted)
   oled.setCursor(0, 13);
   oled.print(F("Soil: "));
-  oled.print(soilPct);
-  oled.print(F("% ("));
-  oled.print(soilRaw);
-  oled.print(F(")"));
-  
-  // Soil moisture mini progress bar
+  if (soilPct < 0) {
+    oled.print(F("FAULT ("));
+    oled.print(soilRaw);
+    oled.print(F(")"));
+  } else {
+    oled.print(soilPct);
+    oled.print(F("% ("));
+    oled.print(soilRaw);
+    oled.print(F(")"));
+  }
+
+  // Soil moisture mini progress bar (blank while the probe is faulted)
   oled.drawRect(0, 23, 128, 6, SSD1306_WHITE);
-  int barW = map(constrain(soilPct, 0, 100), 0, 100, 0, 124);
+  int barW = (soilPct < 0) ? 0 : map(constrain(soilPct, 0, 100), 0, 100, 0, 124);
   if (barW > 0) oled.fillRect(2, 25, barW, 2, SSD1306_WHITE);
 
   // Line 2: Climate & Battery
@@ -149,8 +166,14 @@ void renderOLED(const char* state, uint16_t soilRaw, int soilPct, float temp, fl
 }
 
 // ---------- Sensor Acquisition ----------
+// INO_TEST_ANCHOR: soilReadingValid
+// Sole authority on whether a soil reading may be used for ANY watering decision.
+bool soilReadingValid(uint16_t raw) {
+  return raw >= SENSOR_VALID_LO && raw <= SENSOR_VALID_HI && raw != 0 && raw != 4095;
+}
+
 uint16_t readSoilMoisture() {
-  // Check review fault switch: Cut probe wire (GPIO 14 pulled to GND)
+  // Check review fault switch: Cut probe wire (GPIO 23 pulled to GND)
   if (digitalRead(PIN_SW_CUT) == LOW) {
     Serial.println(F("[DIAGNOSTIC] Fault Switch 3 active: Simulating CUT SENSOR CABLE (Raw 4095)"));
     return 4095;
@@ -287,7 +310,7 @@ String buildTelemetryPacket(uint16_t soilRaw, float temp, float hum, uint16_t ba
          lastPumpMa;
 }
 
-uint16_t processDownlinkWindow(const String& pkt) {
+uint16_t processDownlinkWindow(const String& pkt, uint16_t soilRaw, float temp, float hum, uint16_t battMv) {
   Serial.println(F("\n----------------- TELEMETRY UPLINK -----------------"));
   Serial.print(F("UPLINK PACKET: "));
   Serial.println(pkt);
@@ -300,28 +323,45 @@ uint16_t processDownlinkWindow(const String& pkt) {
   uint32_t rxStart = millis();
 
 #if ENABLE_WOKWI_WIFI
-  // Optional HTTP Uplink when using Wokwi IoT Gateway
+  // Optional direct HTTP uplink when using the Wokwi IoT Gateway.
+  // *** EXPERIMENTAL - DISABLED BY DEFAULT AND NEVER VERIFIED END-TO-END. ***
+  // The supported integration is the serial bridge (wokwi/wokwi_gateway.py).
+  // A node without a synced wall clock must NOT post fabricated timestamps,
+  // so the request is skipped until NTP gives a plausible date.
   if (WiFi.status() == WL_CONNECTED) {
-    HTTPClient http;
-    http.begin(SERVER_URL);
-    http.addHeader("Content-Type", "application/json");
-
-    // Parse packet into JSON object
-    String jsonPayload = String("{\"node\":\"") + NODE_ID + "\"," +
-                         "\"seq\":" + seq + "," +
-                         "\"soil_raw\":" + pkt.substring(pkt.indexOf(',') + 1) + "}";
-    int httpCode = http.POST(jsonPayload);
-    if (httpCode > 0) {
-      String response = http.getString();
-      Serial.printf("HTTP Response (%d): %s\n", httpCode, response.c_str());
-      // Simple parse of downlink run_s
-      int idx = response.indexOf("\"run_s\":");
-      if (idx > 0) {
-        commandedRunS = response.substring(idx + 8).toInt();
-        ackReceived = true;
+    time_t wallClock = time(nullptr);
+    if (wallClock < 1700000000) {
+      Serial.println(F("[WIFI-UP] Wall clock not synced (NTP unavailable). HTTP uplink skipped; use the serial bridge."));
+    } else {
+      HTTPClient http;
+      http.begin(SERVER_URL);
+      http.addHeader("Content-Type", "application/json");
+      // Flask API contract (server.py /api/uplink): node, ts, seq, soil_raw, batt_v
+      // are required; temp, hum, irr_s, flow_l, pump_ma, rssi are optional.
+      String jsonPayload = String("{\"node\":\"") + NODE_ID + "\","
+                           "\"ts\":" + (long long)wallClock + ","
+                           "\"seq\":" + seq + ","
+                           "\"soil_raw\":" + soilRaw + ","
+                           "\"temp\":" + String(temp, 2) + ","
+                           "\"hum\":" + String(hum, 1) + ","
+                           "\"batt_v\":" + String(battMv / 1000.0, 3) + ","
+                           "\"irr_s\":" + lastIrrS + ","
+                           "\"flow_l\":" + String(lastFlowMl / 1000.0, 3) + ","
+                           "\"pump_ma\":" + lastPumpMa + ","
+                           "\"rssi\":0}";          // no radio on this path: 0 = unknown
+      int httpCode = http.POST(jsonPayload);
+      if (httpCode > 0) {
+        String response = http.getString();
+        Serial.printf("HTTP Response (%d): %s\n", httpCode, response.c_str());
+        // Simple parse of downlink run_s
+        int idx = response.indexOf("\"run_s\":");
+        if (idx > 0) {
+          commandedRunS = response.substring(idx + 8).toInt();
+          ackReceived = true;
+        }
       }
+      http.end();
     }
-    http.end();
   }
 #endif
 
@@ -436,7 +476,10 @@ void setup() {
 void loop() {
   // 1. Acquire telemetry
   uint16_t soilRaw = readSoilMoisture();
-  int soilPct = constrain(map(soilRaw, SOIL_DRY_RAW, SOIL_WET_RAW, 0, 100), 0, 100);
+  // FAILSAFE-GATE: a disconnected or shorted probe is a SENSOR FAULT, never
+  // "dry soil". Every watering decision below is conditioned on soilFault.
+  bool soilFault = !soilReadingValid(soilRaw);
+  int soilPct = soilFault ? -1 : constrain(map(soilRaw, SOIL_DRY_RAW, SOIL_WET_RAW, 0, 100), 0, 100);
 
   float temp = dht.readTemperature();
   float hum = dht.readHumidity();
@@ -448,21 +491,36 @@ void loop() {
 
   // 2. Build packet & send
   String pkt = buildTelemetryPacket(soilRaw, temp, hum, battMv);
+  if (soilFault) {
+    Serial.printf("[SENSOR FAULT] Reading %u is outside the calibrated range (%d-%d). Probe is disconnected or shorted.\n",
+                  soilRaw, SENSOR_VALID_LO, SENSOR_VALID_HI);
+    Serial.println(F("[SENSOR FAULT] Automatic watering inhibited (fail-safe AND watering commands)."));
+  }
   renderOLED("UPLINK", soilRaw, soilPct, temp, hum, battV, "Sending packet...");
 
   // 3. Process RX window for downlink command
-  uint16_t runSeconds = processDownlinkWindow(pkt);
+  uint16_t runSeconds = processDownlinkWindow(pkt, soilRaw, temp, hum, battMv);
 
   // 4. Local Fail-Safe Logic
-  // If gateway is silent for multiple wakes and soil is dry, perform one emergency capped run
-  if (runSeconds == 0 && wakesSinceAck >= 10 && soilRaw > LOCAL_DRY_RAW) {
-    Serial.println(F("[FAIL-SAFE] Gateway silent & soil critical! Initiating local fail-safe 60s water."));
-    runSeconds = 60;
-    renderOLED("FAIL-SAFE", soilRaw, soilPct, temp, hum, battV, "Fail-safe Watering");
+  // If gateway is silent for multiple wakes and soil is dry AND the reading is
+  // valid, perform one emergency capped run. Attention: soilReadingValid() is
+  // the gate that stops a raw 4095 (cut probe) being mistaken for dry soil --
+  // regression-tested, do not remove from this condition.
+  if (runSeconds == 0 && wakesSinceAck >= 10) {
+    if (soilFault) {
+      Serial.println(F("[SAFETY-LOCK] Gateway silent, but soil reading is INVALID: fail-safe watering is blocked."));
+    } else if (soilRaw > LOCAL_DRY_RAW) {
+      Serial.println(F("[FAIL-SAFE] Gateway silent & soil critical! Initiating local fail-safe 60s water."));
+      runSeconds = 60;
+      renderOLED("FAIL-SAFE", soilRaw, soilPct, temp, hum, battV, "Fail-safe Watering");
+    }
   }
 
-  // 5. Actuate Pump if commanded
-  if (runSeconds > 0) {
+  // 5. Actuate Pump if commanded (an invalid soil reading also blocks commanded runs)
+  if (runSeconds > 0 && soilFault) {
+    Serial.println(F("[SAFETY-LOCK] Watering command ignored: soil sensor is faulted. Repair the probe first."));
+    renderOLED("SENSOR FAULT", soilRaw, soilPct, temp, hum, battV, "Probe fault: no auto water");
+  } else if (runSeconds > 0) {
     renderOLED("PUMPING", soilRaw, soilPct, temp, hum, battV, "Irrigation Active");
     executePumpCycle(runSeconds);
   }

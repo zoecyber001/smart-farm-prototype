@@ -93,7 +93,7 @@
       "id": "pot_soil",
       "top": 340,
       "left": -180,
-      "attrs": { "label": "Soil Moisture", "value": "700" }
+      "attrs": { "label": "Soil Moisture", "value": "600" }
     },
     {
       "type": "wokwi-potentiometer",
@@ -112,6 +112,11 @@
     [ "esp:5V", "bb1:bp.1", "orange", [ "h-35", "v0" ] ],
     [ "esp:GND.2", "bb1:bn.2", "black", [ "h-45", "v0" ] ],
     [ "bb1:tn.50", "bb1:bn.50", "black", [ "h10", "v0" ] ],
+
+    [ "bb1:tp.25", "bb1:tp.26", "red", [] ],
+    [ "bb1:tn.25", "bb1:tn.26", "black", [] ],
+    [ "bb1:bp.25", "bb1:bp.26", "orange", [] ],
+    [ "bb1:bn.25", "bb1:bn.26", "black", [] ],
 
     [ "oled:VCC", "bb1:tp.6", "red", [ "v30", "h0" ] ],
     [ "oled:GND", "bb1:tn.6", "black", [ "v38", "h0" ] ],
@@ -144,12 +149,12 @@
     [ "relay_pump:VCC", "bb1:bp.48", "orange", [ "v25", "h0" ] ],
     [ "relay_pump:GND", "bb1:bn.48", "black", [ "v35", "h0" ] ],
 
-    [ "pot_soil:VCC", "bb1:bp.12", "orange", [ "v-15", "h0" ] ],
+    [ "esp:25", "pot_soil:VCC", "orange", [ "h-70", "v160", "h-60", "v80", "h-50" ] ],
     [ "pot_soil:GND", "bb1:bn.12", "black", [ "v-25", "h0" ] ],
     [ "pot_soil:SIG", "esp:34", "green", [ "v20", "h-55", "v-380", "h0" ] ],
 
-    [ "pot_batt:VCC", "bb1:bp.22", "orange", [ "v-15", "h0" ] ],
-    [ "pot_batt:GND", "bb1:bn.22", "black", [ "v-25", "h0" ] ],
+    [ "pot_batt:VCC", "bb1:tp.22", "orange", [ "v-15", "h0" ] ],
+    [ "pot_batt:GND", "bb1:tn.22", "black", [ "v-25", "h0" ] ],
     [ "pot_batt:SIG", "esp:35", "gold", [ "v28", "h-65", "v-390", "h0" ] ]
   ],
   "dependencies": {}

@@ -24,7 +24,7 @@ Most "smart irrigation" systems in the market fail because of three real-world f
 
 ### Our Solution
 * **Smart Sensing:** An outdoor computer node (ESP32) measures actual soil moisture, battery voltage, temperature, and humidity.
-* **Long-Range Radio (LoRa):** Sends data up to 5 km with **zero Wi-Fi or cellular needed**, sleeping 99% of the time so two small batteries last **~2 years**.
+* **Long-Range Radio (LoRa):** Sends data with **zero Wi-Fi or cellular needed**, sleeping 99% of the time (two small batteries, ≈2 years estimated — see `farm_ai/docs/FIELD_GUIDE.md`). Datasheet range for 868 MHz modules is a few km in clear line-of-sight; **neither range nor battery life was measured in this prototype** — the radio link is simulated.
 * **Agronomic AI:** The system calculates exact water needs based on soil type (clay vs sand) and crop growth stage.
 * **Self-Defense Hardware:** If sand jams the pump or a pipe clogs, **the node kills the pump automatically in under 1 second** so the motor doesn't catch fire, and sends an alert to the farmer's dashboard.
 
@@ -36,9 +36,9 @@ Most "smart irrigation" systems in the market fail because of three real-world f
 [ OUT IN THE CROP BED ]
   1. Soil Probe reads moisture in the dirt.
   2. ESP32 Node wakes up every 15 min, reads sensors, and sleeps to save power.
-  3. Transmits an encrypted packet over long-range radio (LoRa, 868 MHz).
+  3. Transmits a plain-text CSV telemetry packet over long-range radio (LoRa, 868 MHz).
             │
-            │ Long-Range Radio Signal (2 - 5 km, No Internet Required)
+            │ Long-Range Radio Signal (No Internet Required; range not measured here)
             ▼
 [ AT THE FARMHOUSE / BASE STATION ]
   4. Base Station Laptop / Raspberry Pi receives the packet.
@@ -201,13 +201,13 @@ If your teammates or reviewers want to see the farmer's web dashboard (showing l
 If an evaluator asks you these questions, here are your answers:
 
 1. **"Why not just use Wi-Fi or Cellular?"**  
-   *Answer:* *"Wi-Fi doesn't reach hundreds of meters into crop fields, and cellular SIM cards require monthly subscriptions and drain batteries quickly. We used 868 MHz LoRa, which covers 2 to 5 km with zero subscription cost and allows our node to sleep 99% of the time, lasting up to 2 years on two 18650 cells."*
+   *Answer:* *"Wi-Fi doesn't reach hundreds of meters into crop fields, and cellular SIM cards require monthly subscriptions and drain batteries quickly. We chose 868 MHz LoRa: no subscription cost and very low idle power. Module datasheets quote ranges up to a few kilometres with clear line of sight, but in this prototype the radio link is simulated, so we haven't measured real range yet. The ~2-year battery figure is a calculation from sleep/current budgets (see docs/FIELD_GUIDE.md), not a measurement."*
 
 2. **"What happens if the pump gets clogged with sand or mud?"**  
    *Answer:* *"Our firmware continuously samples pump current and flow rate. If the motor jams, current exceeds 160% of rated value, and our safety interlock shuts off the relay in under 1 second. If emitters clog, it detects 0 flow and shuts down after 15 seconds to prevent dry-running."*
 
 3. **"How does the system survive outdoor weather?"**  
-   *Answer:* *"The electronics are housed in an IP65 weatherproof enclosure with downward-facing cable glands and drip loops to prevent water ingress, an internal desiccant pack for condensation control, and an acrylic inspection window for the OLED display. Our CAD models and 3D STL files are documented in our repository."*
+   *Answer:* *"For the demo the node electronics sit in a 3D-printed enclosure we modeled in Tinkercad, with an inspection window for the OLED display. Important honest point: the printed shell is a concept model — it has no gaskets and we have not tested any ingress rating, so we don't claim IP65 for it. For a real outdoor build, our field guide (docs/FIELD_GUIDE.md) specifies an off-the-shelf IP65+ enclosure mounted above flood level, with matched cable glands, drip loops, desiccant and a bench test plan."*
 
 ---
 

@@ -3,10 +3,14 @@
  *
  * Designed around what actually fails on a farm:
  *   - No WiFi, no mains: LoRa radio, deep sleep, battery (+ optional small solar panel).
- *   - Dirt and water: sensor probe is the ONLY thing in the soil; the electronics live in an IP65+ box (see docs/FIELD_GUIDE.md).
+ *   - Dirt and water: sensor probe is the ONLY thing in the soil; the electronics live in a sealed
+ *     weather-protected enclosure (IP65 is the design target: not yet verified on a physical box).
  *   - Silent mechanical failure: pump CURRENT and drip-line FLOW are measured on every run and reported,
  *     and the node protects itself (stops on jam / dry-run / zero flow).
- *   - Lost link: if the gateway is unreachable for 12 h, a capped local fail-safe waters a dry bed.
+ *   - Lost link: if the gateway is unreachable for 12 h, a capped local fail-safe waters a dry bed
+ *     (only when the soil reading is valid; see soilReadingValid below).
+ *   - Broken probe: a reading outside the calibrated range is reported as a sensor fault and
+ *     blocks every automatic watering decision (raw 4095 is never "dry soil").
  *
  * Libraries (Arduino Library Manager): "LoRa" by Sandeep Mistry, "DHT sensor library" (Adafruit), "Adafruit INA219".
  * Board: use a low-sleep-current ESP32 board (e.g. FireBeetle 2 ESP32-E). Generic dev boards waste 5-10 mA asleep.
@@ -28,6 +32,11 @@
 #define SOIL_DRY_RAW       3100         // sensor in air   (calibrate: see docs/FIELD_GUIDE.md)
 #define SOIL_WET_RAW       1350         // sensor in water
 #define LOCAL_DRY_RAW      2700         // fail-safe: water if drier than this and gateway silent
+// Sensor validity window (calibrated range + margin): readings outside it mean
+// the probe is cut/shorted/unplugged. They must never be treated as dry soil;
+// they raise a sensor fault and inhibit every automatic watering decision.
+#define SENSOR_VALID_LO    (SOIL_WET_RAW - 200)   // 1150: wetter than water = broken
+#define SENSOR_VALID_HI    (SOIL_DRY_RAW + 300)   // 3400: past dry-air = disconnected
 // ---------- pins ----------
 #define PIN_SOIL_ADC       34
 #define PIN_SOIL_PWR       25           // powers the soil sensor only while measuring
@@ -56,6 +65,12 @@ RTC_DATA_ATTR uint16_t failsafeCooldown = 0;
 
 volatile uint32_t pulses = 0;
 void IRAM_ATTR onPulse() { pulses++; }
+
+// INO_TEST_ANCHOR: soilReadingValid
+// Sole authority on whether a soil reading may be used for ANY watering decision.
+bool soilReadingValid(uint16_t raw) {
+  return raw >= SENSOR_VALID_LO && raw <= SENSOR_VALID_HI && raw != 0 && raw != 4095;
+}
 
 uint16_t readSoilRaw() {
   digitalWrite(PIN_SOIL_PWR, HIGH); delay(400);               // let the sensor settle
@@ -110,6 +125,7 @@ void setup() {
   }
 
   uint16_t soil = readSoilRaw();
+  bool soilFault = !soilReadingValid(soil);
   float t = dht.readTemperature(), h = dht.readHumidity();
   if (isnan(t)) t = 0; if (isnan(h)) h = 0;
   uint16_t battMv = readBattMv();
@@ -164,10 +180,25 @@ void setup() {
   if (acked) wakesSinceAck = 0; else if (wakesSinceAck < 65000) wakesSinceAck++;
   if (failsafeCooldown) failsafeCooldown--;
 
-  // Local fail-safe: gateway silent for 12 h and soil is dry -> one short, capped watering per day.
-  if (!acked && wakesSinceAck >= FAILSAFE_WAKES && soil > LOCAL_DRY_RAW && failsafeCooldown == 0) {
+  // Local fail-safe: gateway silent for 12 h + soil dry + valid reading ->
+  // one short, capped watering per day. soilReadingValid() is the gate that
+  // keeps a raw 4095 (cut probe) or a shorted probe from being mistaken for
+  // dry soil (regression-tested; do not remove it from this condition).
+  if (soilFault) {
+    Serial.printf("[SENSOR FAULT] Reading %u is outside the calibrated range (%d-%d): probe cut, shorted or unplugged.\n",
+                  soil, SENSOR_VALID_LO, SENSOR_VALID_HI);
+    Serial.println(F("[SENSOR FAULT] Automatic watering inhibited; water this bed by hand until the probe is repaired."));
+  } else if (!acked && wakesSinceAck >= FAILSAFE_WAKES && soil > LOCAL_DRY_RAW && failsafeCooldown == 0) {
     runS = FAILSAFE_RUN_S; failsafeCooldown = 96;
     Serial.println(F("[FAIL-SAFE] Triggering local emergency watering."));
+  }
+  // An invalid reading also blocks a watering command: the node will not actuate
+  // the pump on a decision that was based on data it can see is impossible.
+  if (soilFault) {
+    if (runS > 0) {
+      Serial.printf("[SAFETY-LOCK] Watering command for %u s ignored: soil sensor reading is invalid.\n", runS);
+      runS = 0;
+    }
   }
   runPump(runS);
 

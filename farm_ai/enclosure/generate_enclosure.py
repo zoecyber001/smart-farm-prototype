@@ -2,8 +2,17 @@
 """Parametric 3D STL Enclosure Generator for Smart Farm Field Node.
 
 Generates:
-  1. enclosure_base.stl - IP65 outdoor base with cable gland cutouts & mounting bosses.
-  2. enclosure_lid.stl  - Weatherproof lid with OLED display inspection window.
+  1. enclosure_base.stl - 130 x 90 x 45 mm floor slab + four walls, four solid
+     corner mounting bosses and four PCB standoffs (all box primitives).
+  2. enclosure_lid.stl  - 130 x 90 x 5 mm flat lid with a 26 x 14 mm OLED
+     inspection window and a perimeter tongue that points DOWN into the base
+     cavity (mates with the wall insides).
+
+Geometry honesty note: this is a concept model assembled from overlapping
+solid box primitives (sharp corners, no boolean unions). The STLs contain NO
+drilled screw holes, NO cable-gland, antenna or vent cutouts, and no verified
+ingress rating. Add cutouts/holes in CAD or the slicer before any outdoor
+use (see TINKERCAD_GUIDE.md).
 """
 
 import os
@@ -59,8 +68,9 @@ def make_box_facets(x0, y0, z0, dx, dy, dz):
     facets.append((norm, p[p1], p[p2], p[p3]))
     facets.append((norm, p[p1], p[p3], p[p4]))
 
-  # Bottom (-Z)
-  add_quad(0, 2, 1, 3, (0, 0, -1))
+  # Bottom (-Z): trace p0 -> p3 -> p2 -> p1 so both triangles wind for an
+  # outward -Z normal: (0,3,2) and (0,2,1) both give cross = (-, -, -Z).
+  add_quad(0, 3, 2, 1, (0, 0, -1))
   # Top (+Z)
   add_quad(4, 5, 6, 7, (0, 0, 1))
   # Front (-Y)
@@ -151,18 +161,20 @@ def generate_enclosure():
       )
   )
 
-  # Weatherproof perimeter lip (tongue to mate with base groove, 1.5mm wide, 2mm tall)
+  # Perimeter tongue that hangs DOWN from the lid underside so it mates with
+  # the inside of the base walls (1.8 mm wide, 2 mm tall). When the lid rests
+  # on the base rim, the tongue spans z = [lid_z - 2, lid_z] into the cavity.
   lip_w, lip_h = 1.8, 2.0
   lid_facets.extend(
       make_box_facets(
-          wall + 0.5, wall + 0.5, lid_h, L - 2 * (wall + 0.5), lip_w, lip_h
+          wall + 0.5, wall + 0.5, -lip_h, L - 2 * (wall + 0.5), lip_w, lip_h
       )
   )
   lid_facets.extend(
       make_box_facets(
           wall + 0.5,
           W - wall - 0.5 - lip_w,
-          lid_h,
+          -lip_h,
           L - 2 * (wall + 0.5),
           lip_w,
           lip_h,
@@ -172,7 +184,7 @@ def generate_enclosure():
       make_box_facets(
           wall + 0.5,
           wall + 0.5,
-          lid_h,
+          -lip_h,
           lip_w,
           W - 2 * (wall + 0.5),
           lip_h,
@@ -182,7 +194,7 @@ def generate_enclosure():
       make_box_facets(
           L - wall - 0.5 - lip_w,
           wall + 0.5,
-          lid_h,
+          -lip_h,
           lip_w,
           W - 2 * (wall + 0.5),
           lip_h,

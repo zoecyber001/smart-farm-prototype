@@ -1,9 +1,9 @@
 # Smart Farm Field Node: Wokwi Hardware Simulation Suite
 
-> **Architectural Status:** Production-Ready Simulation for Technical & Client Reviews  
-> **Target MCU:** Espressif ESP32 DevKit V4 (`board-esp32-devkit-c-v4`)  
-> **Firmware:** Embedded C++ (Arduino Framework / FreeRTOS compatible)  
-> **Radio / Telemetry:** Emulated LoRa (868 MHz) + Bidirectional Downlink Protocol  
+> **Architectural Status:** Demo-Ready Hardware Simulation for Technical & Client Reviews
+> **Target MCU:** Espressif ESP32 DevKit V4 (`board-esp32-devkit-c-v4`)
+> **Firmware:** Embedded C++ (Arduino Framework / FreeRTOS compatible)
+> **Radio / Telemetry:** Telemetry over the Wokwi serial console (CSV). The "LoRa radio link" is simulated by that serial path — no radio is modelled. An EXPERIMENTAL direct-WiFi HTTP path exists in the sketch but is disabled by default and unverified.
 
 ---
 
@@ -27,7 +27,7 @@ This hardware simulation environment faithfully models the **Smart Farm Field No
                                    |
                      Serial Stream / LoRa Bridge
                                    v
-             [ wokwi_gateway.py ]  or  [ Direct WiFi ]
+             [ wokwi_gateway.py ]  or  [ Direct WiFi: EXPERIMENTAL, disabled ]
                                    v
              [ Flask Backend: /api/uplink (server.py) ]
                                    v
@@ -41,12 +41,12 @@ This hardware simulation environment faithfully models the **Smart Farm Field No
 | Component | Wokwi Part Type | ESP32 Pin / Rail | Function / Physics |
 |---|---|---|---|
 | **Solderless Breadboard** | `wokwi-breadboard` | Rails: `3V3`, `5V`, `GND` | 830-point distribution bus. Top rail (`tp`/`tn`) distributes 3.3V & GND; bottom rail (`bp`/`bn`) distributes 5V & GND. |
-| **Soil Probe** | `wokwi-potentiometer` | `GPIO 34` (SIG)<br>`bb1:tp` (3.3V), `bb1:tn` (GND) | Capacitive analog reading (Raw 3100 = Air/Dry, 1350 = Water/Wet). Gated by GPIO 25 in firmware. |
-| **Battery Monitor** | `wokwi-potentiometer` | `GPIO 35` (SIG)<br>`bb1:tp` (3.3V), `bb1:tn` (GND) | 100kΩ/100kΩ voltage divider (2:1 attenuation) monitoring 3.0V – 4.2V Li-ion battery. |
+| **Soil Probe** | `wokwi-potentiometer` | `GPIO 34` (SIG)<br>`esp:25` (VCC, direct wire), `bb1:bn` (GND) | Stands in for the capacitive probe: raw 3100 = dry air (0%), 1350 = saturated (100%). Its VCC is wired to **GPIO 25**, which the firmware drives HIGH only around a reading (anti-corrosion power gating) — the simulation exercises the same gate as the real sensor. Default pot position (600/1023) ≈ raw 2400 ≈ 40% VWC on the OLED, safely wet of the ~22% fail-safe trigger. |
+| **Battery Monitor** | `wokwi-potentiometer` | `GPIO 35` (SIG)<br>`bb1:tp` (3.3 V), `bb1:tn` (GND) | Stands in for the 100k/100k divider on the Li-ion pack: firmware multiplies its ADC mV ×2, so a pot on the 3.3 V rail displays 0–6.6 V equivalents (a real 4.2 V pack ≈ 2.1 V at the pin). Default (600/1023) ≈ 3.9 V shown — a healthy battery. Keep this pot's VCC on the **3.3 V rail**: 5 V on GPIO 35 is outside the ADC's range. |
 | **Microclimate** | `wokwi-dht22` | `GPIO 27` (Data)<br>`bb1:tp` (3.3V), `bb1:tn` (GND) | Ambient temperature (-40°C to 80°C) and relative humidity (0–100%). |
 | **Pump Actuator** | `wokwi-relay-module` | `GPIO 26` (IN)<br>`bb1:bp` (5V), `bb1:bn` (GND) | 12V submersible pump contactor with audible click & status light. |
 | **Pump Active LED**| `wokwi-led` (Blue) | `GPIO 26` (Anode)<br>`bb1:bn` (GND via 220Ω) | High-visibility optical indicator showing when pump motor is energized. |
-| **Flow Meter** | `wokwi-pushbutton` | `GPIO 33` (Pulse)<br>`bb1:bn` (GND) | YF-S201 Hall-effect turbine simulator (450 pulses/L). Generates synthetic pulses during normal runs or on manual push. |
+| **Flow Meter** | `wokwi-pushbutton` | `GPIO 33` (Pulse)<br>`bb1:tn` (GND) | YF-S201 Hall-effect turbine simulator (450 pulses/L). Generates synthetic pulses during normal runs or on manual push. |
 | **Local Display** | `board-ssd1306` | `GPIO 21` (SDA), `GPIO 22` (SCL)<br>`bb1:tp` (3.3V), `bb1:tn` (GND) | 128x64 I2C graphical OLED displaying real-time VWC %, battery bar, climate, pump telemetry, and faults. |
 | **Wake Trigger** | `wokwi-pushbutton` | `GPIO 4` (Active Low)<br>`bb1:tn` (GND) | Manual interrupt button to immediately wake the node from sleep during presentations. |
 | **Fault Switch 1** | `wokwi-slide-switch` | `GPIO 18`<br>`bb1:tn` (GND) | **Simulate Jammed Pump:** Forces current to 1650 mA (>1.6x rated), triggering immediate overcurrent shutdown. |
@@ -110,8 +110,10 @@ Here is how to showcase the system's fault-tolerance and agronomic intelligence 
 ### Scenario 4: Rodent-Chewed Sensor Cable (Electrical Failure Drill)
 1. Flip **Fault Switch 3** (`sw_cut` on GPIO 23) to the active position.
 2. Press the yellow **Wake** button.
-3. **Observation:** Soil ADC reads 4095 (maximum saturated value).
-4. The backend evaluation engine detects `SENSOR_FAULT`, disables automated irrigation for this bed, and alerts the farmer to hand-water.
+3. **Observation:** Soil ADC reads 4095 (maximum saturated value). The node itself recognises raw 4095 as invalid (outside its validity window) and shows `SENSOR FAULT` on the OLED.
+4. **The node refuses to water while the reading is untrustworthy** — no local fail-safe watering, and any `ACK,...` command pasted into the serial console is ignored too (the operator manual says hand-water instead).
+5. The uplink still reports `soil_raw 4095`; the backend's own health check flags `SENSOR_FAULT` (a second, independent layer), disables automated irrigation for that bed, and shows the alert.
+6. Flip the switch back off and send a healthy reading to clear the fault, then normal operation resumes.
 
 ---
 
@@ -139,6 +141,8 @@ To connect the Wokwi simulation to the real Flask API and web dashboard:
    ../.venv/bin/python wokwi/wokwi_gateway.py --demo
    ```
    This automatically streams a live sequence of Wokwi hardware states (dry soil, post-watering, blocked line, cut cable, repair recovery) directly to the dashboard so reviewers can watch the live state updates, charts, and alert resolutions in real time.
+
+> **About "Direct WiFi":** `sketch.ino` contains an EXPERIMENTAL `ENABLE_WOKWI_WIFI` branch that skips the serial bridge and POSTs telemetry JSON straight to `/api/uplink`. It is built to the same contract as the CSV path (`node, ts, seq, soil_raw, …`), but in this demo environment there is no real radio or WiFi stack involved; the branch is compiled out (`#define ENABLE_WOKWI_WIFI 0`) and has not been verified end-to-end. Treat the serial bridge above as the supported path.
 
 ---
 

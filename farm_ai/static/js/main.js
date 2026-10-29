@@ -112,9 +112,10 @@
 
     var m = s.model || {};
     $('foot').textContent = (m.mae_pts_per_h !== undefined)
-      ? 'Forecast accuracy: the model\u2019s water need predictions miss by ' + m.mae_pts_per_h +
-        '% of water on average, vs ' + m.baseline_mae_pts_per_h + '% for a simple average ' +
-        '(' + m.improvement_pct + '% better, measured on beds it never saw in training).'
+      ? 'Forecast accuracy: the model\u2019s drying forecast misses by ' + m.mae_pts_per_h +
+        ' soil-water points/hour on average, vs ' + m.baseline_mae_pts_per_h +
+        ' points/hour for a flat average of the last days (' + m.improvement_pct +
+        '% better, tested on simulated beds it never saw in training).'
       : '';
 
     // drill-down dialog

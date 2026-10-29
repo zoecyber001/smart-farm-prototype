@@ -27,7 +27,8 @@ error by ~80% versus a simple average (`data/drying_model_metrics.json`). Decisi
 ```bash
 pip install -r requirements.txt
 python run_demo.py            # open http://localhost:5000 : a simulated farm with failures already happening
-python -m unittest tests.test_farm -v     # 30 tests
+python -m unittest tests.test_farm -v     # 31 tests
+python -m unittest discover -s tests -v   # 53 tests (adds firmware-gate & uplink-contract regressions)
 ```
 On the first page load the browser installs the offline service worker (scope `/`, served from `/service-worker.js`). From then on, with no network the dashboard still opens and shows the last state it saw, and can be added to a phone home screen via the browser's "Add to Home screen" / install prompt.
 ```
@@ -40,14 +41,16 @@ It models the full physical node:
 - **Interactive Sensors:** Capacitive Soil Probe potentiometer (ADC GPIO 34, gated by GPIO 25), Battery divider (GPIO 35), and DHT22 Temp/Humidity (GPIO 27).
 - **Actuators:** 12V Submersible Pump Relay + High-visibility Blue LED indicator (GPIO 26) with Hall flow meter pulse generator (GPIO 33).
 - **Diagnostics & Display:** I2C 128x64 OLED display showing real-time moisture %, battery voltage, and pump status.
-- **Review Fault Injection:** Three live slide switches to simulate **Jammed Pump** (GPIO 12), **Blocked Drip Line** (GPIO 13), and **Cut Sensor Wire** (GPIO 14) during demonstrations.
+- **Review Fault Injection:** Three live slide switches to simulate **Jammed Pump** (GPIO 18), **Blocked Drip Line** (GPIO 19), and **Cut Sensor Wire** (GPIO 23) during demonstrations.
 - **Live Bridge:** `wokwi/wokwi_gateway.py` bridges Wokwi serial telemetry straight to the local `server.py` dashboard.
 See [`wokwi/README.md`](wokwi/README.md) for full setup instructions and review demonstration drills.
 
 ## What is and isn't proven
 - **Tested (simulation):** advice logic, all fault detectors, automation halting on pump faults, fault persistence until a healthy
   test run, offline detection, API, dashboard, and the swap-in seams (alternative advice strategy, alternative storage,
-  activity feed). 30 automated tests.
+  activity feed). 53 automated tests, including regressions for the invalid-reading
+  sensor gate (raw 4095 / 0 never waters, even with a silent gateway) and the
+  CSV/JSON uplink contract.
 - **NOT tested:** `firmware/` (not compiled or run on real boards), `gateway/lora_gateway.py` (no real radio), real sensors, real enclosures.
   Treat them as a careful first draft for your lab trial.
 - **Crop numbers** (trigger %, root depth, stages) are generic starting values. Confirm with a local agronomist. The ML model starts trained on
