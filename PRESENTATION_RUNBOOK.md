@@ -102,9 +102,14 @@ Files: `farm_ai/wokwi/diagram.json` (repo-root `diagram.json` is the same file),
    followed by `Opening 1.5s RX Window for Gateway reply...`
 2. Paste the packet into the gateway bridge (Section 1) and get an `ACK,..` reply.
 3. Paste `ACK,<node>,<seq>,<seconds>` back into the Wokwi serial box.
-4. Verified-by-design behaviour to narrate: `>> STARTING IRRIGATION CYCLE: N
-   SECONDS`, live `[PUMP] T-...mA | Flow...` lines, relay + blue LED, cycle
-   completion report (`irr_s`, `flow_mL`, avg `pump_mA` in the next uplink).
+4. Verified-by-design behaviour to narrate: `[DOWNLINK] Confirmed for Node
+   N1, Seq …` (printed as soon as the ACK parses), then the pump cycle:
+   `>> STARTING IRRIGATION CYCLE: N SECONDS`, per-second live log lines in the
+   exact format `[PUMP] T-<ss>s | Curr: <mA> mA | Flow: <L> L (<pulses>
+   pulses)`, relay + blue LED, `>> PUMP CYCLE COMPLETED: Ran <n> s | Flow:
+   <mL> mL | Avg Current: <mA> mA` (plus `>> TERMINATION REASON: …` when a
+   safety interlock fired), and the same `irr_s`, `flow_mL`, avg `pump_mA`
+   carried in the next uplink packet.
 
 ### Drill 2 — Jammed pump (current spike)
 * Set **Fault Switch 1 (GPIO 18)** ON, run a pump cycle.
