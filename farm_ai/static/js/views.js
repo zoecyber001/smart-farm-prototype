@@ -129,13 +129,16 @@
       var b = s.beds[i];
       if (b.status === 'water_now') water++;
       if (b.status === 'check_hardware') water++;
-      if (b.forecast_h !== null && (nextH === null || b.forecast_h < nextH)) nextH = b.forecast_h;
+      if (b.forecast_h !== null && b.forecast_h !== undefined && !isNaN(b.forecast_h) && (nextH === null || b.forecast_h < nextH)) {
+        nextH = b.forecast_h;
+      }
     }
     for (i = 0; i < s.faults.length; i++) if (s.faults[i].severity === 'critical') crit++;
+    var nextHStr = (nextH === null || nextH === undefined || isNaN(nextH)) ? '&mdash;' : Math.round(nextH) + ' h';
     return '<div class="tiles">' +
       tile(water, icon('water') + 'To water today', !water, !!water) +
       tile(crit, icon('fix') + 'To fix', !crit, !!crit) +
-      tile(nextH === null ? '&mdash;' : Math.round(nextH) + ' h', icon('clock') + 'Next watering in', nextH === null, false) +
+      tile(nextHStr, icon('clock') + 'Next watering in', nextH === null || nextH === undefined, false) +
       tile(s.beds.length, icon('sprout') + 'Beds on the farm', false, false) +
       '</div>';
   }
