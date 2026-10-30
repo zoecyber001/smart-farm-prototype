@@ -18,6 +18,7 @@ farm_ai/data/demo.db
 # IDE & Editor Settings
 .vscode/
 .idea/
+.pio/
 *.swp
 *.swo
 

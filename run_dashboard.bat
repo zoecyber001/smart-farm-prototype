@@ -1,7 +1,8 @@
 @echo off
 REM ==============================================================================
 REM Smart Farm Dashboard Launcher (Windows)
-REM Double-click this file to start the dashboard and open it in your browser.
+REM Starts the local dashboard waiting for live Wokwi hardware uplinks.
+REM To run with pre-filled 5-bed synthetic demo history instead: run_dashboard.bat demo
 REM ==============================================================================
 
 echo ==========================================================
@@ -32,9 +33,23 @@ if not exist ".venv" (
 REM Open browser after 2 seconds in parallel
 start "" cmd /c "timeout /t 2 /nobreak >nul & start http://localhost:5000"
 
+if "%1"=="demo" goto rundemo
+if "%1"=="--demo" goto rundemo
+
+echo [INFO] Mode: LIVE HARDWARE (Clean start — waiting for Wokwi node)
+echo [INFO] Dashboard running at http://localhost:5000
+echo [INFO] Beds will display data the moment your hardware sends an uplink!
+echo [INFO] Press Ctrl+C anytime to stop.
+echo ----------------------------------------------------------
+python farm_ai\server.py --clean
+goto end
+
+:rundemo
+echo [INFO] Mode: PRE-FILLED DEMO (5 simulated beds with historical data)
 echo [INFO] Dashboard running at http://localhost:5000
 echo [INFO] Press Ctrl+C anytime to stop.
 echo ----------------------------------------------------------
-
 python farm_ai\run_demo.py
+
+:end
 pause

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Smart Farm Dashboard Launcher (Mac / Linux)
-# Starts the local dashboard with simulated farm telemetry and opens the browser.
+# Starts the local dashboard waiting for live Wokwi hardware uplinks.
+# To run with pre-filled 5-bed synthetic demo history instead: ./run_dashboard.sh demo
 # ==============================================================================
 
 set -e
@@ -34,7 +35,7 @@ fi
 # Activate environment
 source .venv/bin/activate
 
-# Open browser in the background after 1.5 seconds
+# Open browser in the background after 2 seconds
 (
     sleep 2
     URL="http://localhost:5000"
@@ -45,8 +46,19 @@ source .venv/bin/activate
     fi
 ) &
 
-echo "[INFO] Dashboard is running at http://localhost:5000"
-echo "[INFO] Press Ctrl+C anytime to stop."
-echo "----------------------------------------------------------"
+MODE="${1:-live}"
 
-python farm_ai/run_demo.py
+if [ "$MODE" == "--demo" ] || [ "$MODE" == "demo" ]; then
+    echo "[INFO] Mode: PRE-FILLED DEMO (5 simulated beds with historical data)"
+    echo "[INFO] Dashboard running at http://localhost:5000"
+    echo "[INFO] Press Ctrl+C anytime to stop."
+    echo "----------------------------------------------------------"
+    python farm_ai/run_demo.py
+else
+    echo "[INFO] Mode: LIVE HARDWARE (Clean start — waiting for Wokwi node)"
+    echo "[INFO] Dashboard running at http://localhost:5000"
+    echo "[INFO] Beds will display data the moment your hardware sends an uplink!"
+    echo "[INFO] Press Ctrl+C anytime to stop."
+    echo "----------------------------------------------------------"
+    python farm_ai/server.py --clean
+fi

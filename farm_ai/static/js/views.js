@@ -45,7 +45,7 @@
 
   /** The farmer-facing sentence for a bed's state. Same words on every surface. */
   function plain(b) {
-    if (b.no_data) return 'Not reporting. Check the sensor box.';
+    if (b.no_data) return 'Waiting for sensor node to report...';
     if (b.status === 'water_now') return 'Soil is dry. Give this bed water today.';
     if (b.status === 'check_hardware') return 'Hardware problem. Water by hand for now.';
     if (b.status === 'too_wet') return 'Soil is wet. No watering needed.';
@@ -188,7 +188,12 @@
         ' waiting to run &mdash; the pump starts when that bed&rsquo;s sensor box checks in (about every 15 minutes).</div>';
     }
 
-    if (todo.length) {
+    var allNoData = s.beds.length > 0 && s.beds.every(function (b) { return b.no_data; });
+    if (allNoData) {
+      out += '<div class="card pad" style="text-align:center; padding: 28px 16px;">' +
+        '<h3 style="margin: 0 0 8px 0;">Waiting for Hardware Telemetry</h3>' +
+        '<p class="sub" style="margin: 0;">No sensor packets have arrived yet. Start your ESP32 in Wokwi (or run the gateway bridge) to begin live monitoring.</p></div>';
+    } else if (todo.length) {
       out += '<h2 class="sect">What to do first</h2><div class="queue">';
       for (i = 0; i < todo.length; i++) {
         if (todo[i].urgency === 'none' && todo.length > 3) continue;
@@ -219,7 +224,7 @@
     if (b.no_data) {
       return '<article class="' + bedClass(b) + '"><div class="card-accent" aria-hidden="true"></div>' +
         '<h3 class="card-title">' + esc(b.bed) + '</h3>' +
-        '<p class="card-detail">Not reporting. The sensor box has not been heard from &mdash; check its power and radio.</p>' +
+        '<p class="card-detail">Waiting for hardware. The sensor node has not reported yet &mdash; start the node in Wokwi to stream live telemetry.</p>' +
         '</article>';
     }
     var value = b.aw_pct === null ? '&mdash;' : b.aw_pct + '%';

@@ -50,4 +50,15 @@ def create_app(engine=None, db_path=None, sim_clock=False):
 
 
 if __name__ == '__main__':
-    create_app().run(host='0.0.0.0', port=5000)
+    import argparse
+    parser = argparse.ArgumentParser(description="Smart Farm Live Server")
+    parser.add_argument('--clean', action='store_true', help="Start fresh with no data until hardware reports")
+    parser.add_argument('--port', type=int, default=5000)
+    args = parser.parse_args()
+
+    db = os.path.join(core.BASE, 'data', 'farm.db')
+    if args.clean and os.path.exists(db):
+        os.remove(db)
+
+    print(f"Starting server on http://localhost:{args.port} (database: {db})...")
+    create_app(db_path=db).run(host='0.0.0.0', port=args.port)
