@@ -28,3 +28,6 @@ Thumbs.db
 # Bundles & Archives (build outputs)
 *.zip
 *.tar.gz
+
+# PlatformIO/Wokwi build outputs
+.pio/

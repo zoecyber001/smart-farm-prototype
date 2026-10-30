@@ -34,7 +34,7 @@
 // Gateway. This path has never been verified end-to-end against a running
 // server; the supported integration is the serial gateway bridge
 // (wokwi/wokwi_gateway.py). Leave false for the presentation.
-#define ENABLE_WOKWI_WIFI   false
+#define ENABLE_WOKWI_WIFI   true
 
 #if ENABLE_WOKWI_WIFI
 #include <WiFi.h>
@@ -42,7 +42,10 @@
 #include <time.h>
 const char* WIFI_SSID = "Wokwi-GUEST";
 const char* WIFI_PASS = "";
-const char* SERVER_URL = "http://host.wokwi.internal:5000/api/uplink";
+// Wokwi public gateway -> Cloudflare quick tunnel -> Flask (localhost:5000).
+// Tunnel restart (new URL each start):
+//   cloudflared tunnel --url http://localhost:5000 --no-autoupdate
+const char* SERVER_URL = "http://interact-rows-eleven-creates.trycloudflare.com/api/uplink";
 #endif
 
 // ---------- Identity & Agronomic Calibration ----------
@@ -323,11 +326,10 @@ uint16_t processDownlinkWindow(const String& pkt, uint16_t soilRaw, float temp, 
   uint32_t rxStart = millis();
 
 #if ENABLE_WOKWI_WIFI
-  // Optional direct HTTP uplink when using the Wokwi IoT Gateway.
-  // *** EXPERIMENTAL - DISABLED BY DEFAULT AND NEVER VERIFIED END-TO-END. ***
-  // The supported integration is the serial bridge (wokwi/wokwi_gateway.py).
-  // A node without a synced wall clock must NOT post fabricated timestamps,
-  // so the request is skipped until NTP gives a plausible date.
+  // Direct HTTP uplink over the Wokwi IoT Gateway, via the public Cloudflare
+  // quick-tunnel to the Flask server. Requires NTP-synced wall clock: a node
+  // without a synced clock must NOT post fabricated timestamps, so the
+  // request is skipped until time() gives a plausible date (see setup()).
   if (WiFi.status() == WL_CONNECTED) {
     time_t wallClock = time(nullptr);
     if (wallClock < 1700000000) {
@@ -465,6 +467,14 @@ void setup() {
   }
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println(F(" Connected!"));
+    // /api/uplink rejects packets whose ts looks stale, so a node without a
+    // synced wall clock stays silent (gate in the uplink below).
+    configTime(0, 0, "pool.ntp.org", "time.google.com");
+    uint32_t t1 = millis();
+    while (time(nullptr) < 1700000000 && millis() - t1 < 4000) { delay(100); }
+    Serial.printf("[WIFI-UP] Wall clock %s.\n",
+                  time(nullptr) >= 1700000000 ? "synced via NTP"
+                                              : "NOT synced (serial bridge fallback)");
   } else {
     Serial.println(F(" Timeout. Proceeding in LoRa/Serial mode."));
   }

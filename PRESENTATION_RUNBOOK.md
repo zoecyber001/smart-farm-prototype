@@ -11,6 +11,8 @@ environment. Anything runbook lists as "unverified" has **not** been run here.
 cd /home/zoecyber/Downloads/smart_farm_prototype/farm_ai
 ../.venv/bin/python -m unittest discover -s tests -v     # expect: "Ran 53 tests ... OK"
 python3 enclosure/validate_stl.py                          # expect: "VALIDATION OK"
+~/.platformio/penv/bin/pio run -d wokwi                    # optional: rebuild sim firmware (last verified build: SUCCESS, 2026-10-30)
+wokwi-cli lint                                             # optional: diagram sanity (expect: no warnings)
 ```
 
 Environment needed: Python 3 venv at repo root (`.venv/`, already present),
@@ -30,6 +32,8 @@ cd farm_ai && ../.venv/bin/python run_demo.py
 * Open `http://localhost:5000`. The page rebuilds `farm_ai/data/demo.db` from
   scratch each start and prefills 4 simulated days of history (a day ticks in
   ~1 minute).
+  * If a dashboard is already running (check: `curl -s localhost:5000/api/state | head -c 80`),
+    do NOT start a second one — just open the browser, or Ctrl+C the old one first.
 * Verified observations on load:
   * Header reads **"GAA Demo Farm (simulation)"** with a `SIMULATED CLOCK` badge —
     keep this on screen; it is the honest label.
@@ -77,7 +81,87 @@ visible state changes, not repeat watering demands.
 Files: `farm_ai/wokwi/diagram.json` (repo-root `diagram.json` is the same file),
 `farm_ai/wokwi/sketch.ino`, `farm_ai/wokwi/libraries.txt`.
 
-**Setup (web, zero install):**
+> **Tonight (2026-10-30), network reality:** this network TLS-resets three Wokwi
+> hosts — `vscode.preview.wokwi.com` (VS Code sim), `netwi.wokwi.com` (web editor
+> WiFi) and `gateway.wokwi.com` (IoT gateway). `wokwi.com` itself and its
+> `*.workers.dev` helpers are whitelisted, so the web editor runs fine
+> **without WiFi** — the sketch ships with `ENABLE_WOKWI_WIFI false`, so the sim
+> never touches a blocked host. License is the free plan: the Private IoT
+> Gateway (`host.wokwi.internal`) is paying-user-only. Use the paths below.
+
+### Track B via web editor (wokwi.com — the host that works here)
+
+1. In the browser (do this *before* screen sharing), open
+   `https://wokwi.com/projects/new/esp32`.
+2. Sign in once (the account that owns the license) — then no more sign-in
+   popups; dismiss the cookie banner once — Firefox remembers.
+3. Paste the three files: `diagram.json` into the diagram tab, `sketch.ino`
+   into the code tab, `libraries.txt` into the Library Manager tab
+   (or the four library names: Adafruit SSD1306, Adafruit GFX Library,
+   DHT sensor library, Adafruit Unified Sensor).
+4. Press **Play**. The node now connects itself: `[WIFI] Connecting to
+   Wokwi-GUEST... Connected!` → `[WIFI-UP] Wall clock synced via NTP` → every
+   15 s a `TELEMETRY UPLINK` block with `HTTP Response (200): {...}` — the
+   packet POSTs straight to the Flask server via the Cloudflare tunnel, and
+   the dashboard updates live. No copy/paste anywhere. Do **not** click
+   Save / Save As during the demo.
+5. Live beats: drag the Soil pot toward **dry** → the next uplink's HTTP
+   response contains `"run_s": <n>` → the pump relay lights and the dashboard
+   records the irrigation command. (Requires the running tunnel — see below.
+   Fallback if the tunnel died: `../../.venv/bin/python auto_bridge.py
+   --manual` in `farm_ai/wokwi` — paste an uplink line, get the ACK back.)
+
+### Track B hands-free (optional, no browser prompts at all)
+
+The Wokwi CLI's simulation websocket is `wss://wokwi.com/api/ws/beta` — on the
+whitelisted domain, so it will work here. One-time: log into wokwi.com in the
+browser and create a token at `https://wokwi.com/dashboard/ci` (44 chars,
+starts with `wok_`), then:
+
+```bash
+export WOKWI_CLI_TOKEN=$(cat ~/.wokwi/cli_token)   # your token file
+cd farm_ai/wokwi
+../../.venv/bin/python auto_bridge.py              # spawns wokwi-cli --interactive,
+                                                   # auto-forwards every UPLINK PACKET
+                                                   # to /api/uplink and injects the ACK
+```
+
+`auto_bridge.py --self-test` verified the parse→POST→ACK loop locally; the CLI
+only ever talks to `wokwi.com` itself. The bridge needs NO tunnel — the sim's
+serial travels over the whitelisted websocket and the bridge posts straight to
+`localhost:5000`. No token yet? Run the bridge without a sim for the web
+editor copy/paste loop: `../../.venv/bin/python auto_bridge.py --manual`
+(paste an uplink line, get the ACK back).
+
+### Public tunnel (UP now — for the sketch's own WiFi POSTs)
+
+Cloudflare quick tunnel → `http://localhost:5000`
+**URL: `https://interact-rows-eleven-creates.trycloudflare.com`**
+Verified through it: `GET /api/state` → HTTP 200 with live data;
+`POST /api/uplink` → contract reply. Restart the tunnel (new random URL each
+start): `/tmp/opencode/cloudflared tunnel --url http://localhost:5000 --no-autoupdate`
+
+With a working network (e.g. phone hotspot) the ino can self-connect: flip
+`ENABLE_WOKWI_WIFI` on, set `SERVER_URL = "http://<tunnel-url>/api/uplink"`
+(the sketch already speaks this exact protocol), rebuild, and the node posts
+to the server by itself — no gateway loop at all.
+
+### Track B via VS Code (only if the network changes)
+
+1. A VS Code window is already open at `farm_ai/wokwi` (or open it: `code -n farm_ai/wokwi`).
+   The folder holds `wokwi.toml` + `diagram.json` + the *simulator firmware*, already
+   compiled: `.pio/build/esp32dev/firmware.bin` (sketch compiles clean: RAM 6.9 %,
+   flash 24.3 %; `src/wokwi.ino` is a hard link to `sketch.ino` — always edit `sketch.ino`,
+   then rebuild with `~/.platformio/penv/bin/pio run -d farm_ai/wokwi`).
+2. Press **F1 → "Wokwi: Start Simulator"** (`wokwi-vscode.start`). The license
+   (`~/.wokwi/user.tok`, activated 2026-10-28) is already active. **Note:** the
+   diagram *editor* (double-clicking `diagram.json`) is a cloud viewer that
+   stalls on this network — use Start Simulator, not the editor tab.
+3. The simulation canvas boots with the ESP32, OLED, sensors and actuators; the
+   serial monitor is inside the sim tab (there you paste the `ACK,..` replies, too).
+4. Diagram lint (optional sanity check): `~/.local/bin/wokwi-cli lint`
+   → verified clean (only an informational note about the DevKit C V4 board type).
+
 1. Go to wokwi.com → new ESP32 project.
 2. Paste `diagram.json` into the diagram tab, `sketch.ino` into `sketch.ino`,
    and the four libraries into Library Manager (`Adafruit SSD1306`,
@@ -285,7 +369,7 @@ Honest notes for this track:
 | Radio range | **Not measured.** 868 MHz module datasheets suggest up to a few km clear line-of-sight; unverified here. |
 | Battery life "2 years" | **A calculation** from a sleep/current budget in `farm_ai/docs/FIELD_GUIDE.md`; not measured. Depends on real derating. |
 | Enclosure | **3D-printed concept shells** (`farm_ai/enclosure/`), mesh-validated but with **no cutouts, no gaskets, no IP rating proven**. Field spec (real glands, gasket, vent, IP65 box) lives in `farm_ai/docs/FIELD_GUIDE.md`. |
-| Firmware compile/flash | **Not verified in this environment** (no arduino-cli/PlatformIO/Wokwi CLI here). The sketch is syntax-checkable only; run Wokwi to see it working. |
+| Firmware compile | **Compiled clean here** (PlatformIO + real ESP32 toolchain, 2026-10-30: RAM 6.9 %, flash 24.3 %). `firmware/field_node/field_node.ino` (the non-sim hardware build) is still not compiled — say so if asked. |
 | Sensors/pumps | Wokwi potentiometers/buttons/switches stand in for real capacitive probe, YF-S201, DHT22, relay, pump. |
 | "AI" | Gradient-boosted drying-rate forecaster over physical soil-water points (error reported in **points/hour**, not "% water"); decisions themselves are transparent rule-based — say that last part out loud. Improvement measured on **simulated** beds only; retrain on real logs before field use. |
 | Service worker / offline | Verified: page and last state load from cache; installs as PWA. |

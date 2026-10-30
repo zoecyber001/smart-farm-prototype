@@ -15,14 +15,19 @@
       "id": "oled",
       "top": -80,
       "left": -280,
-      "attrs": { "i2cAddress": "0x3c" }
+      "attrs": {
+        "i2cAddress": "0x3c"
+      }
     },
     {
       "type": "wokwi-dht22",
       "id": "dht",
       "top": -80,
       "left": 200,
-      "attrs": { "temperature": "26.5", "humidity": "58" }
+      "attrs": {
+        "temperature": "26.5",
+        "humidity": "58"
+      }
     },
     {
       "type": "wokwi-breadboard",
@@ -36,42 +41,48 @@
       "id": "btn_wake",
       "top": 175,
       "left": -220,
-      "attrs": { "color": "yellow", "label": "Wake / Send" }
+      "attrs": {
+        "color": "yellow",
+        "label": "Wake / Send"
+      }
     },
     {
       "type": "wokwi-pushbutton",
       "id": "btn_flow",
       "top": 175,
       "left": -140,
-      "attrs": { "color": "green", "label": "Flow Pulse" }
+      "attrs": {
+        "color": "green",
+        "label": "Flow Pulse"
+      }
     },
     {
       "type": "wokwi-slide-switch",
       "id": "sw_jam",
       "top": 175,
-      "left": -60,
-      "attrs": { "value": "", "label": "Fault: Jam Pump" }
+      "left": -60
     },
     {
       "type": "wokwi-slide-switch",
       "id": "sw_block",
       "top": 175,
-      "left": 10,
-      "attrs": { "value": "", "label": "Fault: Block Line" }
+      "left": 10
     },
     {
       "type": "wokwi-slide-switch",
       "id": "sw_cut",
       "top": 175,
-      "left": 80,
-      "attrs": { "value": "", "label": "Fault: Cut Sensor" }
+      "left": 80
     },
     {
       "type": "wokwi-led",
       "id": "led_pump",
       "top": 175,
       "left": 150,
-      "attrs": { "color": "blue", "label": "PUMP ACTIVE" }
+      "attrs": {
+        "color": "blue",
+        "label": "PUMP ACTIVE"
+      }
     },
     {
       "type": "wokwi-resistor",
@@ -79,83 +90,385 @@
       "top": 235,
       "left": 150,
       "rotate": 90,
-      "attrs": { "value": "220" }
+      "attrs": {
+        "value": "220"
+      }
     },
     {
       "type": "wokwi-relay-module",
       "id": "relay_pump",
       "top": 150,
       "left": 260,
-      "attrs": { "transistor": "npn" }
+      "attrs": {
+        "transistor": "npn"
+      }
     },
     {
       "type": "wokwi-potentiometer",
       "id": "pot_soil",
       "top": 340,
       "left": -180,
-      "attrs": { "label": "Soil Moisture", "value": "600" }
+      "attrs": {
+        "value": "600"
+      }
     },
     {
       "type": "wokwi-potentiometer",
       "id": "pot_batt",
       "top": 340,
       "left": -20,
-      "attrs": { "label": "Battery Level", "value": "600" }
+      "attrs": {
+        "value": "600"
+      }
     }
   ],
   "connections": [
-    [ "esp:TX", "$serialMonitor:RX", "", [] ],
-    [ "esp:RX", "$serialMonitor:TX", "", [] ],
-
-    [ "esp:3V3", "bb1:tp.1", "red", [ "h-15", "v0" ] ],
-    [ "esp:GND.1", "bb1:tn.2", "black", [ "h-25", "v0" ] ],
-    [ "esp:5V", "bb1:bp.1", "orange", [ "h-35", "v0" ] ],
-    [ "esp:GND.2", "bb1:bn.2", "black", [ "h-45", "v0" ] ],
-    [ "bb1:tn.50", "bb1:bn.50", "black", [ "h10", "v0" ] ],
-
-    [ "bb1:tp.25", "bb1:tp.26", "red", [] ],
-    [ "bb1:tn.25", "bb1:tn.26", "black", [] ],
-    [ "bb1:bp.25", "bb1:bp.26", "orange", [] ],
-    [ "bb1:bn.25", "bb1:bn.26", "black", [] ],
-
-    [ "oled:VCC", "bb1:tp.6", "red", [ "v30", "h0" ] ],
-    [ "oled:GND", "bb1:tn.6", "black", [ "v38", "h0" ] ],
-    [ "oled:SCL", "esp:22", "yellow", [ "v-20", "h0" ] ],
-    [ "oled:SDA", "esp:21", "blue", [ "v-32", "h0" ] ],
-
-    [ "dht:VCC", "bb1:tp.42", "red", [ "v30", "h0" ] ],
-    [ "dht:GND", "bb1:tn.42", "black", [ "v38", "h0" ] ],
-    [ "dht:SDA", "esp:27", "cyan", [ "v-25", "h0" ] ],
-
-    [ "btn_wake:1.l", "bb1:tn.10", "black", [ "v-12", "h0" ] ],
-    [ "btn_wake:2.l", "esp:4", "yellow", [ "v-25", "h0" ] ],
-
-    [ "btn_flow:1.l", "bb1:tn.18", "black", [ "v-12", "h0" ] ],
-    [ "btn_flow:2.l", "esp:33", "green", [ "v-35", "h0" ] ],
-
-    [ "sw_jam:3", "bb1:tn.25", "black", [ "v-12", "h0" ] ],
-    [ "sw_jam:2", "esp:18", "magenta", [ "v-45", "h0" ] ],
-
-    [ "sw_block:3", "bb1:tn.32", "black", [ "v-12", "h0" ] ],
-    [ "sw_block:2", "esp:19", "purple", [ "v-55", "h0" ] ],
-
-    [ "sw_cut:3", "bb1:tn.38", "black", [ "v-12", "h0" ] ],
-    [ "sw_cut:2", "esp:23", "brown", [ "v-65", "h0" ] ],
-
-    [ "esp:26", "relay_pump:IN", "purple", [ "v20", "h0" ] ],
-    [ "relay_pump:IN", "led_pump:A", "blue", [ "v-18", "h0" ] ],
-    [ "led_pump:C", "res_led:1", "blue", [] ],
-    [ "res_led:2", "bb1:bn.45", "black", [ "v12", "h0" ] ],
-    [ "relay_pump:VCC", "bb1:bp.48", "orange", [ "v25", "h0" ] ],
-    [ "relay_pump:GND", "bb1:bn.48", "black", [ "v35", "h0" ] ],
-
-    [ "esp:25", "pot_soil:VCC", "orange", [ "h-70", "v160", "h-60", "v80", "h-50" ] ],
-    [ "pot_soil:GND", "bb1:bn.12", "black", [ "v-25", "h0" ] ],
-    [ "pot_soil:SIG", "esp:34", "green", [ "v20", "h-55", "v-380", "h0" ] ],
-
-    [ "pot_batt:VCC", "bb1:tp.22", "orange", [ "v-15", "h0" ] ],
-    [ "pot_batt:GND", "bb1:tn.22", "black", [ "v-25", "h0" ] ],
-    [ "pot_batt:SIG", "esp:35", "gold", [ "v28", "h-65", "v-390", "h0" ] ]
+    [
+      "esp:TX",
+      "$serialMonitor:RX",
+      "",
+      []
+    ],
+    [
+      "esp:RX",
+      "$serialMonitor:TX",
+      "",
+      []
+    ],
+    [
+      "esp:3V3",
+      "bb1:tp.1",
+      "red",
+      [
+        "h-15",
+        "v0"
+      ]
+    ],
+    [
+      "esp:GND.1",
+      "bb1:tn.2",
+      "black",
+      [
+        "h-25",
+        "v0"
+      ]
+    ],
+    [
+      "esp:5V",
+      "bb1:bp.1",
+      "orange",
+      [
+        "h-35",
+        "v0"
+      ]
+    ],
+    [
+      "esp:GND.2",
+      "bb1:bn.2",
+      "black",
+      [
+        "h-45",
+        "v0"
+      ]
+    ],
+    [
+      "bb1:tn.50",
+      "bb1:bn.50",
+      "black",
+      [
+        "h10",
+        "v0"
+      ]
+    ],
+    [
+      "bb1:tp.25",
+      "bb1:tp.26",
+      "red",
+      []
+    ],
+    [
+      "bb1:tn.25",
+      "bb1:tn.26",
+      "black",
+      []
+    ],
+    [
+      "bb1:bp.25",
+      "bb1:bp.26",
+      "orange",
+      []
+    ],
+    [
+      "bb1:bn.25",
+      "bb1:bn.26",
+      "black",
+      []
+    ],
+    [
+      "oled:VCC",
+      "bb1:tp.6",
+      "red",
+      [
+        "v30",
+        "h0"
+      ]
+    ],
+    [
+      "oled:GND",
+      "bb1:tn.6",
+      "black",
+      [
+        "v38",
+        "h0"
+      ]
+    ],
+    [
+      "oled:SCL",
+      "esp:22",
+      "yellow",
+      [
+        "v-20",
+        "h0"
+      ]
+    ],
+    [
+      "oled:SDA",
+      "esp:21",
+      "blue",
+      [
+        "v-32",
+        "h0"
+      ]
+    ],
+    [
+      "dht:VCC",
+      "bb1:tp.42",
+      "red",
+      [
+        "v30",
+        "h0"
+      ]
+    ],
+    [
+      "dht:GND",
+      "bb1:tn.42",
+      "black",
+      [
+        "v38",
+        "h0"
+      ]
+    ],
+    [
+      "dht:SDA",
+      "esp:27",
+      "cyan",
+      [
+        "v-25",
+        "h0"
+      ]
+    ],
+    [
+      "btn_wake:1.l",
+      "bb1:tn.10",
+      "black",
+      [
+        "v-12",
+        "h0"
+      ]
+    ],
+    [
+      "btn_wake:2.l",
+      "esp:4",
+      "yellow",
+      [
+        "v-25",
+        "h0"
+      ]
+    ],
+    [
+      "btn_flow:1.l",
+      "bb1:tn.18",
+      "black",
+      [
+        "v-12",
+        "h0"
+      ]
+    ],
+    [
+      "btn_flow:2.l",
+      "esp:33",
+      "green",
+      [
+        "v-35",
+        "h0"
+      ]
+    ],
+    [
+      "sw_jam:3",
+      "bb1:tn.25",
+      "black",
+      [
+        "v-12",
+        "h0"
+      ]
+    ],
+    [
+      "sw_jam:2",
+      "esp:18",
+      "magenta",
+      [
+        "v-45",
+        "h0"
+      ]
+    ],
+    [
+      "sw_block:3",
+      "bb1:tn.32",
+      "black",
+      [
+        "v-12",
+        "h0"
+      ]
+    ],
+    [
+      "sw_block:2",
+      "esp:19",
+      "purple",
+      [
+        "v-55",
+        "h0"
+      ]
+    ],
+    [
+      "sw_cut:3",
+      "bb1:tn.38",
+      "black",
+      [
+        "v-12",
+        "h0"
+      ]
+    ],
+    [
+      "sw_cut:2",
+      "esp:23",
+      "brown",
+      [
+        "v-65",
+        "h0"
+      ]
+    ],
+    [
+      "esp:26",
+      "relay_pump:IN",
+      "purple",
+      [
+        "v20",
+        "h0"
+      ]
+    ],
+    [
+      "relay_pump:IN",
+      "led_pump:A",
+      "blue",
+      [
+        "v-18",
+        "h0"
+      ]
+    ],
+    [
+      "led_pump:C",
+      "res_led:1",
+      "blue",
+      []
+    ],
+    [
+      "res_led:2",
+      "bb1:bn.45",
+      "black",
+      [
+        "v12",
+        "h0"
+      ]
+    ],
+    [
+      "relay_pump:VCC",
+      "bb1:bp.48",
+      "orange",
+      [
+        "v25",
+        "h0"
+      ]
+    ],
+    [
+      "relay_pump:GND",
+      "bb1:bn.48",
+      "black",
+      [
+        "v35",
+        "h0"
+      ]
+    ],
+    [
+      "esp:25",
+      "pot_soil:VCC",
+      "orange",
+      [
+        "h-70",
+        "v160",
+        "h-60",
+        "v80",
+        "h-50"
+      ]
+    ],
+    [
+      "pot_soil:GND",
+      "bb1:bn.12",
+      "black",
+      [
+        "v-25",
+        "h0"
+      ]
+    ],
+    [
+      "pot_soil:SIG",
+      "esp:34",
+      "green",
+      [
+        "v20",
+        "h-55",
+        "v-380",
+        "h0"
+      ]
+    ],
+    [
+      "pot_batt:VCC",
+      "bb1:tp.22",
+      "orange",
+      [
+        "v-15",
+        "h0"
+      ]
+    ],
+    [
+      "pot_batt:GND",
+      "bb1:tn.22",
+      "black",
+      [
+        "v-25",
+        "h0"
+      ]
+    ],
+    [
+      "pot_batt:SIG",
+      "esp:35",
+      "gold",
+      [
+        "v28",
+        "h-65",
+        "v-390",
+        "h0"
+      ]
+    ]
   ],
   "dependencies": {}
 }
